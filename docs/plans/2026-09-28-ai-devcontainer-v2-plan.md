@@ -1,7 +1,7 @@
 ---
 ticket: none
 date: 2026-09-28
-status: approved
+status: implemented
 spec: ../specs/2026-09-28-ai-devcontainer-v2-design.md
 technical-design: ../technical-designs/ai-devcontainer-v2-technical-design.md
 branch: feature/ai-devcontainer-v2
