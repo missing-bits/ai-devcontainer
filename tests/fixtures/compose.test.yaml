@@ -1,0 +1,9 @@
+# Test-only Compose overlay (tests/integration/, Task 7). Never referenced by
+# the shared .devcontainer/compose.yaml. Passes GITHUB_TOKEN through from the
+# host so a container's mise installs authenticate to GitHub instead of
+# hitting the unauthenticated 60-requests-per-hour limit. Every first start
+# in the integration suite adds this file.
+services:
+  workspace:
+    environment:
+      - GITHUB_TOKEN

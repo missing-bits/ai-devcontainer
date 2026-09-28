@@ -1,0 +1,6 @@
+# Test-only Compose overlay (tests/integration/, Task 7). Never referenced by
+# the shared .devcontainer/compose.yaml. Starts the workspace service with no
+# network, for the AC4 and AC10 no-network scenarios.
+services:
+  workspace:
+    network_mode: none
