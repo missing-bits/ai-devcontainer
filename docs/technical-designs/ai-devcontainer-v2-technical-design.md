@@ -89,8 +89,9 @@ the tools lock `/opt/aidc/tools/.lock`. *Copy* always means: write
 `/opt/aidc/devcontainer/mise.toml` to a temporary file in the volume, then rename
 it over `mise.toml`, so an interrupted copy leaves the old file or none.
 
-- start: copy and run `mise lock --global` only when no copy exists; then
-  `mise install --locked`;
+- start: copy when no copy exists; run `mise lock --global` when no
+  `mise.lock` exists (so a first start that failed offline locks again at the
+  next start); then `mise install --locked`;
 - `aidc:sync`: copy, `mise lock --global`, `mise install --locked`;
 - `aidc:update`: as `aidc:sync`, then `mise upgrade`.
 
@@ -115,11 +116,21 @@ changed declaration (v1 probes saw the newest installed match), and that
 
 ### 3.5 Plugin initialization
 
-Catalog shape, with fictional names; `codex` has the same shape:
+Catalog content (public marketplaces; IDs from the v1 catalog, the
+Codex IDs *to verify*):
 
 ```json
-{ "claude": { "marketplaces": ["example-org/example-marketplace"],
-              "plugins": ["example-plugin@example-marketplace"] } }
+{ "claude": { "marketplaces": ["anthropics/claude-plugins-official",
+                               "obra/superpowers-marketplace",
+                               "missing-bits/claude-plugins"],
+              "plugins": ["superpowers@claude-plugins-official",
+                          "elements-of-style@superpowers-marketplace",
+                          "working-process@missing-bits",
+                          "project-memory@missing-bits"] },
+  "codex":  { "marketplaces": ["anthropics/claude-plugins-official",
+                               "obra/superpowers-marketplace"],
+              "plugins": ["superpowers@claude-plugins-official",
+                          "elements-of-style@superpowers-marketplace"] } }
 ```
 
 `aidc-plugins init <agent>`, run through the launchers:
@@ -130,8 +141,11 @@ Catalog shape, with fictional names; `codex` has the same shape:
 4. Run `marketplace list --json`. Add each catalog marketplace whose
    repository is not listed: `claude plugin marketplace add <owner/repo>
    --scope user` or `codex plugin marketplace add <owner/repo>`. Claude lists a
-   shorthand as `{name, source: "github", repo}`; Codex stores it as
-   `https://github.com/<owner/repo>.git` (*verified*, probe 2026-09-28).
+   shorthand as `{name, source: "github", repo}`; Codex's
+   `plugin marketplace list --json` returns
+   `{marketplaces: [{name, root, marketplaceSource: {sourceType, source}}]}`
+   with a shorthand stored as `https://github.com/<owner/repo>.git`
+   (*verified*, probes 2026-09-28).
 5. List the installed plugins, disabled ones included, and install each
    default not listed: `claude plugin install <plugin@marketplace> --scope
    user` or `codex plugin add <plugin@marketplace>`. A listed plugin is never
@@ -155,7 +169,8 @@ subshell with the isolation of §3.3, runs `mise which <tool>` from `/`, then
 `exec`s the result in the caller's directory and environment. From `/`,
 `mise which` returns the version `mise.lock` pins, even when the caller's
 directory holds a project configuration (*verified*, spike 2026-09-26). With no
-result, the launcher exits non-zero and names `mise run aidc:sync`.
+result, the launcher exits non-zero and names the documented
+`aidc:sync` invocation of §2.
 
 The `codex` launcher reuses the tested v1 logic: `--no-daemon` for the
 interactive CLI (no subcommand, `resume`, `fork`) unless `--remote` is given;
@@ -176,7 +191,8 @@ binary into `CODEX_HOME/packages/` and left a daemon running).
 | Codex `requirements.toml` | `allowed_sandbox_modes = ["danger-full-access"]` | pins the isolation choice | source inspection; runtime *to verify* |
 | Codex `/etc/codex/config.toml` | `sandbox_mode = "danger-full-access"`, `approval_policy = "on-request"` | container as the boundary | source inspection; runtime *to verify* |
 
-The shared Compose file sets both Claude variables in the environment too.
+The shared Compose file sets `DISABLE_UPDATES` in the environment too; the
+other two Claude keys live in managed settings only.
 Source inspection, 2026-09-28, is not runtime verification:
 - Claude Code 2.1.283, `strings bin/claude.exe`: `Yte(){return
   Kte()&&!a.FORCE_AUTOUPDATE_PLUGINS}`, where `Kte()` is true under
@@ -198,11 +214,12 @@ boundary.
   `remoteUser: dev`;
 - `dockerComposeFile`: the absolute path of `.devcontainer/compose.yaml`, then
   `../compose.yaml`;
-- `overrideCommand: false`, so the entrypoint and command stay (*verified*);
+- `overrideCommand: false`, so the entrypoint and command stay (*to verify*);
 - `updateRemoteUserUID: false`, because the build already uses the host UID.
 
 `.local/<p>/compose.yaml`, written as JSON (valid YAML): `name: aidc-<p>`,
-build arguments `USER_UID` and `USER_GID`, the volumes and mounts of §3.2,
+build arguments `USER_UID` and `USER_GID`, the volumes and mounts of §3.2
+except the read-only `.devcontainer/` bind, which the shared Compose file owns,
 the environment of §3.1, and the socket bind when opted in. The Dev
 Containers CLI takes the project name from `COMPOSE_PROJECT_NAME`, then `.env`
 in its working directory, then `name:` (*verified*, `devcontainers/cli`
@@ -213,6 +230,49 @@ resolves another project.
 running container; *verified*, `findComposeContainer`), then `code
 --folder-uri vscode-remote://dev-container+<hex host path of .local/<p>>/workspaces/<p>`
 (form *to verify*). "Rebuild Container" reads the same files.
+
+### 3.9 Implementation details
+
+- **Script locations.** `aidc-entrypoint`, `aidc-tools`, `aidc-plugins` and
+  the launchers ship in the image under `/usr/local/lib/aidc/`. The `[tasks]`
+  entries call them by absolute path. A script change therefore needs an image
+  rebuild, while a change to `mise.toml` or `plugins.json` needs only
+  `aidc:sync` or the next start.
+- **`aidc:status`** reads files only, so it works offline:
+  - `init.status` and the tail of `init.log`;
+  - `mise ls` against the tools config copy;
+  - for each agent, whether its plugin marker exists.
+  It calls no agent CLI.
+- **`profile:code` order.** It validates the name, takes the host profile
+  lock, parses and validates `profile.env`, generates `.local/<p>/`, runs
+  `devcontainer up`, writes `.local/active-profile`, then opens VS Code. A
+  failure before generation changes no file. This is the command that
+  enforces AC1's `profile.env` rules; `profile:new` validates only the name.
+  With no argument and no active profile, it exits non-zero and lists
+  `profiles/`.
+- **`profile:remove`** takes the lock and runs `docker compose -p aidc-<p>
+  down` against the generated files, falling back to the
+  `com.docker.compose.project=aidc-<p>` label when those files are gone. It
+  then removes `aidc-tools-<p>` and `.local/<p>/`, and clears
+  `.local/active-profile` if that file names `<p>`.
+- **`profile.env` syntax.** Only whole-line `#` comments are allowed. Values
+  are literal: quotes are kept as characters and no expansion takes place. A
+  `DOCKER_SOCKET` value other than `on` or `off` is rejected.
+- **Shell.** The login shell of `dev` is zsh. The minimal config is
+  `/etc/zsh/zshrc` in the image. It runs `mise activate zsh`, then registers
+  the launcher `chpwd` and `precmd` hooks and sets the history options.
+- **Host tools** in the root `mise.toml`, pinned: the Dev Containers CLI,
+  `jq`, `bats`, `shellcheck`, `shfmt`. Docker and `flock` are host
+  prerequisites.
+- **Reused v1 files** (branch `feature/ai-devcontainer`):
+  `.devcontainer/lib/mise-isolation.sh`, which removes every inherited
+  `MISE_*` variable and sets only `MISE_DATA_DIR` and
+  `MISE_GLOBAL_CONFIG_FILE`, and `.devcontainer/launchers/codex` with
+  `lib/codex-cli.sh` and `tests/unit/container/launchers.bats`, each adapted to
+  the v2 paths.
+- **A CLI installed later.** When a CLI was missing at start and `aidc:sync`
+  installs it afterwards, plugin initialization runs at the next container
+  start. `aidc:sync` does not trigger it.
 
 ## 4. State
 
@@ -270,7 +330,9 @@ Report and retry; no custom transactions.
 **bats unit tests**, no Docker: `profile.env` parsing, name validation,
 generated files, marketplace matching on recorded list shapes, the `codex`
 launcher's arguments (v1 tests), and plugin initialization with stub CLIs,
-including a partial run and its retry.
+including a partial run and its retry, and AC8's second half: a default removed
+or disabled after the marker exists stays so at the next start, because
+initialization stops at the marker.
 
 **Docker integration tests**: two profiles (AC2); `cd project && claude`
 in a project declaring its own `claude` (AC3); versions after recreation
@@ -322,3 +384,5 @@ socket only with the opt-in).
 ## Review rounds
 
 Reviewed with the design spec in its architect round 1 (2026-09-28, LGTM); the findings and fixes are recorded in the spec's Review rounds section.
+
+Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 implementer questions, all disposed in place — §3.3 locks again when `mise.lock` is missing, §3.5 carries the real catalog and the Codex list shape, §3.7 and §3.8 wording, and the new §3.9 answers the implementer questions.

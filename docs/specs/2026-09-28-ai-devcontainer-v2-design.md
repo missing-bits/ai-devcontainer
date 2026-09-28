@@ -5,6 +5,7 @@ status: draft
 branch: feature/ai-devcontainer-v2
 technical-design: ../technical-designs/ai-devcontainer-v2-technical-design.md
 architect: LGTM
+integrity: 2026-09-28 (sha: 5ee7282; with: ../technical-designs/ai-devcontainer-v2-technical-design.md@69c59be)
 ---
 
 # AI Devcontainer v2 Design
@@ -51,8 +52,8 @@ instead of guarding against them. Terms follow `docs/domain/glossary.md`.
 An environment profile `<p>` has:
 
 - `profiles/<p>/profile.env`: named fields only, parsed and never sourced;
-  unknown keys are rejected. The fields select the agent state profiles
-  (Claude, Codex, shell history), opt in to the Docker socket, and optionally
+  unknown keys are rejected. The fields select the state profiles
+  (the Claude and Codex agent state profiles and the shell history profile), opt in to the Docker socket, and optionally
   set `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`,
   `GIT_COMMITTER_EMAIL` and `GIT_SSH_COMMAND`;
 - `projects/<p>/`: its checkouts, mounted at `/workspaces/<p>`;
@@ -150,15 +151,17 @@ command can control every container on the host.
   tools volume; it keeps `projects/<p>/`, `profiles/<p>/` and state volumes.
 - `profile:rebuild [p]` exists only if VS Code "Rebuild Container" proves not
   enough (to verify).
-- Repository tasks: `fmt`, `lint`, `test`, `check`.
+- Repository tasks: `fmt`, `lint`, `test` (unit), `test:integration` (Docker),
+  `check`.
 
 ## Container tasks
 
 - `aidc:sync`, `aidc:update` and `aidc:status`, defined in the container's
   global mise configuration. The prefix avoids accidental name collisions;
-  the documented invocation selects the neutral directory `/` before mise
-  loads any configuration and turns off task auto-install, so a project
-  cannot interfere and `aidc:status` runs offline.
+  the documented invocation is meant to select the neutral directory `/`
+  before mise loads any configuration and to turn off task auto-install, so a
+  project cannot interfere and `aidc:status` runs offline (the mechanism is
+  to verify, TD §8).
 - `aidc:status` shows the container tools, the plugins per agent and the last
   initialization result, read from a log and a marker.
 - The container stays reachable when initialization fails.
@@ -232,6 +235,8 @@ command can control every container on the host.
 - Concurrent use of one Claude and one Codex state profile from two containers.
 - How `mise lock --global` resolves a changed declaration.
 - Whether Codex enforces the sandbox and approval settings.
+- Where exactly Claude keeps its login state inside `CLAUDE_CONFIG_DIR`.
+- The container task mechanism: global tasks, `-C /`, the auto-install setting.
 - The manual VS Code smoke checklist in TD §7.
 
 ## Review rounds
@@ -250,3 +255,4 @@ command can control every container on the host.
 - fixed 2026-09-28 — [Minor] M10: bare "state profile" and `/opt/aidc/desired`; license: glossary; umbrella term added, mount renamed `/opt/aidc/devcontainer`.
 - fixed 2026-09-28 — integrity-class note: Claude credential location stated as fact but open in TD §8; license: TD §8; the spec now marks the exact file to verify.
 - signal 2026-09-28 — another architect round would not earn its cost; a propagation audit after the fixes and the integrity audit at the consumption gate suffice.
+- fixed 2026-09-28 — integrity audit (consumption gate, with the TD): 8 defects and 14 implementer questions disposed in place; license: the audit's two-quote proofs and the v2 brief; spec wording (state profiles, container task mechanism marked to verify, open items, `test:integration`) and TD §3.3–§3.9.
