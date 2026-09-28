@@ -1,11 +1,12 @@
 ---
 ticket: none
 date: 2026-09-28
-status: draft
+status: approved
 spec: ../specs/2026-09-28-ai-devcontainer-v2-design.md
 technical-design: ../technical-designs/ai-devcontainer-v2-technical-design.md
 branch: feature/ai-devcontainer-v2
 base: develop
+adversary: blocking (resolved 2026-09-28)
 ---
 
 # AI Devcontainer v2 Implementation Plan
@@ -572,3 +573,5 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [Important] I2: nothing built the image in the suite; license: TD §3.9 (scripts are image-baked); suite setup builds `aidc-workspace:local` once per run.
 - fixed 2026-09-28 — [Minor] M1: Interfaces reworded, real `devcontainer up` only in the smoke and P6.1; M2: `min_version` floor in Task 1; M3: the online recreation spelled out; license: the round's evidence.
 - signal 2026-09-28 — cap spent; another full round would not earn its cost; a short diff check closes the loop (developer: Codex closure check).
+
+Resolved 2026-09-28 without a fourth adversary round: round 3's fixes landed under cited licenses and developer rulings. The round cap was spent, and the reviewer's stop signal judged a short diff check sufficient. On the developer's order, the Codex closure check reviewed every fix wave and passed (`PASS`). The developer then approved the plan for implementation.
