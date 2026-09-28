@@ -52,7 +52,7 @@ SDD reports of that plan (`task-2-report.md` through `task-7-report.md`).
 
 | probe | result | date |
 |---|---|---|
-| P2.1 (dev-container folder URI, TD §3.8) | **Fails under WSL**: VS Code resolves the URI's `hostPath` as a Windows path. Fallback applied: `profile:code` opens `.local/<p>` in VS Code and asks the developer to choose "Reopen in Container". | 2026-09-28 |
+| P2.1 (dev-container folder URI, TD §3.8) | With a Linux host path it fails under WSL, because VS Code resolves `hostPath` as a Windows path. With `wslpath -w`'s `\\wsl.localhost\...` form it opens directly in the container (developer run). `profile:code` uses that form under WSL. | 2026-09-28 |
 | P2.2 (Docker socket group, TD §3.2/§8) | **Confirmed on Docker Engine**: `group_add` of the host socket's GID (`stat -c %g /var/run/docker.sock`) puts that GID in the container's `id -G`. Docker Desktop is unverified (not reachable from the probing host). | 2026-09-28 |
 | P4.1 (global-config tasks) | **Pass**: a task in `MISE_GLOBAL_CONFIG_FILE` is listed and runs from `/` and from a project directory alike, with no trust prompt. | 2026-09-28 |
 | P4.2 (`-C /` before configuration loads) | **Pass**: `-C /` on an untrusted project sources nothing, installs nothing and trusts nothing; without it, plain `mise run` silently trusts the project and runs its own task instead. | 2026-09-28 |

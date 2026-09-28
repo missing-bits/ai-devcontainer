@@ -45,8 +45,13 @@ devcontainer up --workspace-folder "$out"
 
 printf '%s\n' "$name" >"$AIDC_ROOT/.local/active-profile"
 
-# P2.1 fallback: a dev-container+<hex> folder URI resolves hostPath as a Windows
-# path under WSL, so open the generated folder and let the developer pick
-# "Reopen in Container", which attaches to the running container.
-aidc::info "Opening $out in VS Code: choose \"Reopen in Container\"."
-code "$out"
+# Open VS Code directly in the container. The dev-container URI carries the
+# host path of .local/<p> in hex; under WSL, VS Code reads that path as a
+# Windows path, so pass the \\wsl.localhost\... form from wslpath -w
+# (verified 2026-09-28).
+host_path="$out"
+if [ -n "${WSL_DISTRO_NAME:-}" ] && command -v wslpath >/dev/null 2>&1; then
+  host_path="$(wslpath -w "$out")"
+fi
+hex="$(printf '%s' "$host_path" | od -An -tx1 | tr -d ' \n')"
+code --folder-uri "vscode-remote://dev-container+$hex/workspaces/$name"

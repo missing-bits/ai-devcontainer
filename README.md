@@ -68,11 +68,10 @@ Run these from the repository root with `mise run <task>`:
   Edit `profile.env` before the first `profile:code`.
 - `profile:code [name]` — makes `<name>` the active profile (or reuses the
   active profile when no name is given), generates `.local/<name>/`, starts
-  the container, and opens VS Code on it. Because a `vscode-remote://`
-  dev-container folder URI resolves its host path as a Windows path under
-  WSL and fails to attach (verified 2026-09-28), `profile:code` opens the
-  plain folder instead and asks you to choose **"Reopen in Container"**,
-  which attaches to the container it just started.
+  the container, and opens VS Code directly inside it at
+  `/workspaces/<name>`. Under WSL it passes the `\\wsl.localhost\...` form of
+  the generated folder's path, which VS Code expects there (verified
+  2026-09-28).
 - `profile:remove <name>` — removes the container, `.local/<name>/` and the
   profile's tools volume. It keeps `projects/<name>/`, `profiles/<name>/`
   and every state volume (Claude, Codex, shell history), so a login and a

@@ -235,11 +235,12 @@ source). Accepted risk: a VS Code started with `COMPOSE_PROJECT_NAME` set
 resolves another project.
 
 `profile:code` runs `devcontainer up --workspace-folder .local/<p>` (reuses a
-running container; *verified*, `findComposeContainer`), then `code .local/<p>`
-and tells the developer to choose "Reopen in Container", which attaches to the
-running container. A `vscode-remote://dev-container+<hex>` folder URI is not
-used: under WSL, VS Code resolves its hostPath as a Windows path (*verified*,
-Task 6 probe P2.1 2026-09-28). "Rebuild Container" reads the same files.
+running container; *verified*, `findComposeContainer`), then `code
+--folder-uri vscode-remote://dev-container+<hex of the host path of
+.local/<p>>/workspaces/<p>`. Under WSL (`WSL_DISTRO_NAME` set) the host path is
+`wslpath -w`'s `\\wsl.localhost\...` form, because VS Code reads it as a
+Windows path (*verified*, developer run 2026-09-28, after probe P2.1 showed the
+Linux path fails). "Rebuild Container" reads the same files.
 
 ### 3.9 Implementation details
 
@@ -402,3 +403,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — a lock across all platforms failed when a declared version lacked another architecture's asset (implementation Task 4, P4.4); ruling: 2026-09-28 (developer); locks cover the container platform only.
 - fixed 2026-09-28 — Codex 0.157.1 rejects `allowed_sandbox_modes` without `read-only`, and forcing Claude's plugin auto-update contradicts leaving updates to the CLIs (Task 6 probes P6.3/P6.4); ruling: 2026-09-28 (developer); both keys dropped, `gnupg` added for the apt key check.
 - fixed 2026-09-28 — the dev-container folder URI fails under WSL (Task 6 probe P2.1); license: the plan's pre-agreed P2.1 fallback; `profile:code` opens `.local/<p>` and asks for "Reopen in Container".
+- fixed 2026-09-28 — opening `.local/<p>` and asking for "Reopen in Container" left the developer in the generated folder; license: developer run with the `wslpath -w` host path (window opened in the container); `profile:code` opens the container directly.

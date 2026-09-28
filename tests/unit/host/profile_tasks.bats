@@ -3,7 +3,7 @@ load ../../helpers/common
 
 setup() {
   aidc_test_repo
-  unset PROFILE
+  unset PROFILE WSL_DISTRO_NAME
   STUB_BIN="$BATS_TEST_TMPDIR/bin"
   mkdir -p "$STUB_BIN"
   CALLS="$BATS_TEST_TMPDIR/calls.log"
@@ -103,8 +103,8 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   grep -q "^docker volume create aidc-codex-demo\$" "$CALLS"
   grep -q "^docker volume create aidc-shell-demo\$" "$CALLS"
   grep -q "^devcontainer up --workspace-folder $AIDC_ROOT/.local/demo\$" "$CALLS"
-  grep -q "^code $AIDC_ROOT/.local/demo\$" "$CALLS"
-  assert_output_contains "Reopen in Container"
+  hex="$(printf '%s' "$AIDC_ROOT/.local/demo" | od -An -tx1 | tr -d ' \n')"
+  grep -q "^code --folder-uri vscode-remote://dev-container+$hex/workspaces/demo\$" "$CALLS"
   [ "$(cat "$AIDC_ROOT/.local/active-profile")" = demo ]
 
   last_volume="$(grep -n '^docker volume create' "$CALLS" | tail -1 | cut -d: -f1)"
@@ -112,6 +112,21 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   code_line="$(grep -n '^code ' "$CALLS" | head -1 | cut -d: -f1)"
   [ "$last_volume" -lt "$up_line" ]
   [ "$up_line" -lt "$code_line" ]
+}
+
+@test "under WSL, profile:code passes the Windows form of the host path in the URI" {
+  new demo
+  cat >"$STUB_BIN/wslpath" <<'STUB'
+#!/usr/bin/env bash
+[ "$1" = -w ] && printf '\\\\wsl.localhost\\Distro%s\n' "$(printf '%s' "$2" | tr / '\\')"
+STUB
+  chmod +x "$STUB_BIN/wslpath"
+  WSL_DISTRO_NAME=Distro code_task demo
+  assert_success
+  win="$(PATH="$STUB_BIN:$PATH" wslpath -w "$AIDC_ROOT/.local/demo")"
+  case "$win" in '\\wsl.localhost\Distro\'*) ;; *) false ;; esac
+  hex="$(printf '%s' "$win" | od -An -tx1 | tr -d ' \n')"
+  grep -q "^code --folder-uri vscode-remote://dev-container+$hex/workspaces/demo\$" "$CALLS"
 }
 
 @test "profile:code alone uses the active profile; with none, it lists profiles/" {
