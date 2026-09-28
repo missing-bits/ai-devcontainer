@@ -23,12 +23,12 @@ usage() {
 agent="$2"
 case "$agent" in
 claude)
-	state="${CLAUDE_CONFIG_DIR:-/home/dev/.claude}"
+	state="${CLAUDE_CONFIG_DIR:-/home/vscode/.claude}"
 	listed_marketplaces='[.[]? | select(.source == "github") | .repo]'
 	listed_plugins='[.[]? | .id]'
 	;;
 codex)
-	state="${CODEX_HOME:-/home/dev/.codex}"
+	state="${CODEX_HOME:-/home/vscode/.codex}"
 	listed_marketplaces='[.marketplaces[]? | .marketplaceSource.source]'
 	listed_plugins='[.installed[]? | .pluginId]'
 	;;

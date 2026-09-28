@@ -4,7 +4,7 @@
     "version": "1.0.0",
     "scope": "user",
     "enabled": false,
-    "installPath": "/home/dev/.claude/plugins/cache/superpowers-marketplace/elements-of-style/1.0.0",
+    "installPath": "/home/vscode/.claude/plugins/cache/superpowers-marketplace/elements-of-style/1.0.0",
     "installedAt": "2026-09-28T14:30:32.733Z",
     "lastUpdated": "2026-09-28T14:30:32.733Z"
   },
@@ -13,7 +13,7 @@
     "version": "0.5.1",
     "scope": "user",
     "enabled": true,
-    "installPath": "/home/dev/.claude/plugins/cache/missing-bits/project-memory/0.5.1",
+    "installPath": "/home/vscode/.claude/plugins/cache/missing-bits/project-memory/0.5.1",
     "installedAt": "2026-09-28T14:30:34.655Z",
     "lastUpdated": "2026-09-28T14:30:34.655Z"
   },
@@ -22,7 +22,7 @@
     "version": "6.4.1",
     "scope": "user",
     "enabled": true,
-    "installPath": "/home/dev/.claude/plugins/cache/claude-plugins-official/superpowers/6.4.1",
+    "installPath": "/home/vscode/.claude/plugins/cache/claude-plugins-official/superpowers/6.4.1",
     "installedAt": "2026-09-28T14:30:30.777Z",
     "lastUpdated": "2026-09-28T14:30:30.777Z"
   },
@@ -31,7 +31,7 @@
     "version": "0.17.0",
     "scope": "user",
     "enabled": true,
-    "installPath": "/home/dev/.claude/plugins/cache/missing-bits/working-process/0.17.0",
+    "installPath": "/home/vscode/.claude/plugins/cache/missing-bits/working-process/0.17.0",
     "installedAt": "2026-09-28T14:30:33.645Z",
     "lastUpdated": "2026-09-28T14:30:33.645Z"
   }

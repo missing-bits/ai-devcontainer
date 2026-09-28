@@ -3,18 +3,18 @@
     "name": "claude-plugins-official",
     "source": "github",
     "repo": "anthropics/claude-plugins-official",
-    "installLocation": "/home/dev/.claude/plugins/marketplaces/claude-plugins-official"
+    "installLocation": "/home/vscode/.claude/plugins/marketplaces/claude-plugins-official"
   },
   {
     "name": "missing-bits",
     "source": "github",
     "repo": "missing-bits/claude-plugins",
-    "installLocation": "/home/dev/.claude/plugins/marketplaces/missing-bits"
+    "installLocation": "/home/vscode/.claude/plugins/marketplaces/missing-bits"
   },
   {
     "name": "superpowers-marketplace",
     "source": "github",
     "repo": "obra/superpowers-marketplace",
-    "installLocation": "/home/dev/.claude/plugins/marketplaces/superpowers-marketplace"
+    "installLocation": "/home/vscode/.claude/plugins/marketplaces/superpowers-marketplace"
   }
 ]

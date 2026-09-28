@@ -50,7 +50,7 @@ mise_version() {
 }
 
 @test "an interactive shell has a ~/.zshrc and skips the zsh new-user wizard" {
-  run aidc_it_exec "$C" test -f /home/dev/.zshrc
+  run aidc_it_exec "$C" test -f /home/vscode/.zshrc
   assert_success
 
   run aidc_it_exec "$C" script -qc "zsh -i -c exit" /dev/null

@@ -2,7 +2,7 @@
   "marketplaces": [
     {
       "name": "claude-plugins-official",
-      "root": "/home/dev/.codex/.tmp/marketplaces/claude-plugins-official",
+      "root": "/home/vscode/.codex/.tmp/marketplaces/claude-plugins-official",
       "marketplaceSource": {
         "sourceType": "git",
         "source": "https://github.com/anthropics/claude-plugins-official.git"
@@ -10,7 +10,7 @@
     },
     {
       "name": "superpowers-marketplace",
-      "root": "/home/dev/.codex/.tmp/marketplaces/superpowers-marketplace",
+      "root": "/home/vscode/.codex/.tmp/marketplaces/superpowers-marketplace",
       "marketplaceSource": {
         "sourceType": "git",
         "source": "https://github.com/obra/superpowers-marketplace.git"

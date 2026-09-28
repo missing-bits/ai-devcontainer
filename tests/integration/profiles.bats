@@ -103,26 +103,26 @@ teardown_file() {
   aidc_it_track_volume "aidc-shell-$s1"
   aidc_it_track_volume "aidc-shell-$s2"
 
-  run docker inspect --format '{{ range .Mounts }}{{ if eq .Destination "/home/dev/.claude" }}{{ .Name }}{{ end }}{{ end }}' "$(aidc_it_container "$s1")"
+  run docker inspect --format '{{ range .Mounts }}{{ if eq .Destination "/home/vscode/.claude" }}{{ .Name }}{{ end }}{{ end }}' "$(aidc_it_container "$s1")"
   assert_success
   [ "$output" = "aidc-claude-$shared" ]
-  run docker inspect --format '{{ range .Mounts }}{{ if eq .Destination "/home/dev/.claude" }}{{ .Name }}{{ end }}{{ end }}' "$(aidc_it_container "$s2")"
+  run docker inspect --format '{{ range .Mounts }}{{ if eq .Destination "/home/vscode/.claude" }}{{ .Name }}{{ end }}{{ end }}' "$(aidc_it_container "$s2")"
   assert_success
   [ "$output" = "aidc-claude-$shared" ]
 
-  aidc_it_exec "$s1" sh -c 'echo written-in-s1 > /home/dev/.claude/shared-settings'
-  run aidc_it_exec "$s2" cat /home/dev/.claude/shared-settings
+  aidc_it_exec "$s1" sh -c 'echo written-in-s1 > /home/vscode/.claude/shared-settings'
+  run aidc_it_exec "$s2" cat /home/vscode/.claude/shared-settings
   assert_success
   [ "$output" = written-in-s1 ]
 
-  aidc_it_exec "$s2" sh -c 'echo written-in-s2 > /home/dev/.codex/shared-settings'
-  run aidc_it_exec "$s1" cat /home/dev/.codex/shared-settings
+  aidc_it_exec "$s2" sh -c 'echo written-in-s2 > /home/vscode/.codex/shared-settings'
+  run aidc_it_exec "$s1" cat /home/vscode/.codex/shared-settings
   assert_success
   [ "$output" = written-in-s2 ]
 }
 
 @test "profile:remove removes the container, .local/<p> and the tools volume, keeps projects, profiles and state volumes, and succeeds again" {
-  aidc_it_exec "$A" sh -c 'echo survives >/home/dev/.claude/pre-remove-marker'
+  aidc_it_exec "$A" sh -c 'echo survives >/home/vscode/.claude/pre-remove-marker'
 
   run bash "$AIDC_ROOT/tasks/host/profile/remove" "$A"
   assert_success
@@ -145,7 +145,7 @@ teardown_file() {
   aidc_it_code "$A"
   aidc_it_up "$A" "$COMPOSE_TEST"
 
-  run aidc_it_exec "$A" cat /home/dev/.claude/pre-remove-marker
+  run aidc_it_exec "$A" cat /home/vscode/.claude/pre-remove-marker
   assert_success
   [ "$output" = survives ]
 }

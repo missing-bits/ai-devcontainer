@@ -17,6 +17,12 @@ setup() {
   [ "$(jq -r .name "$AIDC_ROOT/.local/demo/compose.yaml")" = aidc-demo ]
 }
 
+@test "the fragment sets the container hostname to the profile name" {
+  aidc::generate demo "$AIDC_ROOT/.local/demo"
+  local f="$AIDC_ROOT/.local/demo/compose.yaml"
+  [ "$(jq -r .services.workspace.hostname "$f")" = demo ]
+}
+
 @test "build args equal the host UID and GID" {
   aidc::generate demo "$AIDC_ROOT/.local/demo"
   local f="$AIDC_ROOT/.local/demo/compose.yaml"
@@ -37,7 +43,7 @@ setup() {
   aidc::generate demo "$AIDC_ROOT/.local/demo"
   local f="$AIDC_ROOT/.local/demo/compose.yaml"
   [ "$(jq -r '.volumes | has("aidc-claude-team")' "$f")" = true ]
-  [ "$(jq -r '[.services.workspace.volumes[] | select(.target == "/home/dev/.claude")][0].source' "$f")" = aidc-claude-team ]
+  [ "$(jq -r '[.services.workspace.volumes[] | select(.target == "/home/vscode/.claude")][0].source' "$f")" = aidc-claude-team ]
 }
 
 @test "bind sources are absolute" {
@@ -94,7 +100,7 @@ setup() {
   [ "$(jq -r .name "$f")" = aidc-demo ]
   [ "$(jq -r .service "$f")" = workspace ]
   [ "$(jq -r .workspaceFolder "$f")" = /workspaces/demo ]
-  [ "$(jq -r .remoteUser "$f")" = dev ]
+  [ "$(jq -r .remoteUser "$f")" = vscode ]
   [ "$(jq -r .overrideCommand "$f")" = false ]
   [ "$(jq -r .updateRemoteUserUID "$f")" = false ]
   [ "$(jq -r '.dockerComposeFile[0]' "$f")" = "$AIDC_ROOT/.devcontainer/compose.yaml" ]

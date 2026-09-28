@@ -18,8 +18,8 @@ tools_dir="${AIDC_TOOLS_DIR:-/opt/aidc/tools}"
 source_file="${AIDC_DEVCONTAINER_DIR:-/opt/aidc/devcontainer}/mise.toml"
 copy="$tools_dir/mise.toml"
 lock="$tools_dir/mise.lock"
-claude_state="${CLAUDE_CONFIG_DIR:-/home/dev/.claude}"
-codex_state="${CODEX_HOME:-/home/dev/.codex}"
+claude_state="${CLAUDE_CONFIG_DIR:-/home/vscode/.claude}"
+codex_state="${CODEX_HOME:-/home/vscode/.codex}"
 
 usage() {
 	aidc::die "usage: aidc-tools start|sync|update|status"

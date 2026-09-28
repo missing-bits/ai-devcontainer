@@ -40,14 +40,14 @@ teardown_file() {
 }
 
 @test "a user settings.json setting DISABLE_UPDATES=0 does not re-enable Claude's update" {
-  aidc_it_exec "$P" sh -c 'echo "{\"env\":{\"DISABLE_UPDATES\":\"0\"}}" > /home/dev/.claude/settings.json'
+  aidc_it_exec "$P" sh -c 'echo "{\"env\":{\"DISABLE_UPDATES\":\"0\"}}" > /home/vscode/.claude/settings.json'
   run aidc_it_exec "$P" claude update
   assert_success
   assert_output_contains "Updates are disabled by your administrator"
 }
 
 @test "a user config.toml cannot re-enable the Codex update check" {
-  aidc_it_exec "$P" sh -c 'printf "check_for_update_on_startup = true\n" > /home/dev/.codex/config.toml'
+  aidc_it_exec "$P" sh -c 'printf "check_for_update_on_startup = true\n" > /home/vscode/.codex/config.toml'
   # codex doctor's own exit status reflects unrelated environment checks
   # (e.g. no login in this state profile), not this override, so only the
   # startup warning line is asserted.
@@ -72,7 +72,7 @@ teardown_file() {
 
   run aidc_it_exec "$P" pgrep -f app-server
   assert_failure
-  run aidc_it_exec "$P" test -d /home/dev/.codex/packages
+  run aidc_it_exec "$P" test -d /home/vscode/.codex/packages
   assert_failure
 }
 

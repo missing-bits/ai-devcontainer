@@ -31,9 +31,9 @@ All parts are `new`.
 | part | kind | change | placement | owns | deliberately excludes |
 |---|---|---|---|---|---|
 | Host tasks | mise file tasks (bash) | new | root `mise.toml`, `tasks/host/`, small library `tasks/host/lib/` | name validation, `profile.env` parsing, profile creation, generation of `.local/<p>/`, volume creation, `devcontainer up`, opening VS Code, removal, the host profile lock, the active profile, repository checks | any change inside a running container; reading agent state |
-| Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `dev`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/devcontainer` | anything profile-specific |
-| Generated profile files | local files | new | `.local/<p>/compose.yaml` (the profile's Compose fragment) and `.local/<p>/.devcontainer/devcontainer.json` | the profile's project name, build arguments, volume names, mounts, environment and socket opt-in | anything versioned; secrets |
-| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `dev` built with the host UID and GID, volume mount points owned by `dev`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
+| Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `vscode`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/devcontainer` | anything profile-specific |
+| Generated profile files | local files | new | `.local/<p>/compose.yaml` (the profile's Compose fragment) and `.local/<p>/.devcontainer/devcontainer.json` | the profile's project name, `hostname: <p>`, build arguments, volume names, mounts, environment and socket opt-in | anything versioned; secrets |
+| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `vscode` built with the host UID and GID, volume mount points owned by `vscode`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
 | Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude HTTPS marketplace clones, Codex file credentials, Codex default sandbox and approval mode | user preferences; files in agent state |
 | Entrypoint | container executable | new | `.devcontainer/bin/aidc-entrypoint` → `/usr/local/lib/aidc/bin/` | the start sequence (§3.4), the init log and the init result marker, handing over to the keep-alive command whatever happened | tool and plugin logic |
 | Container tasks | mise tasks + bash script | new | `[tasks]` of `.devcontainer/mise.toml` (`aidc:sync`, `aidc:update`, `aidc:status`); `.devcontainer/bin/aidc-tools` shared with the entrypoint; invoked as `MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>`, so the neutral directory is chosen before any configuration loads and no auto-install bypasses the tools lock (*to verify*, §8) | the tools lock, copying the config into the tools volume, `mise install`/`mise upgrade`, the status report | plugin updates |
@@ -67,9 +67,9 @@ because Compose interpolates the fragment.
 | source | target | environment |
 |---|---|---|
 | `aidc-tools-<p>` | `/opt/aidc/tools` | `MISE_DATA_DIR=/opt/aidc/tools/mise`, `MISE_GLOBAL_CONFIG_FILE=/opt/aidc/tools/mise.toml` |
-| `aidc-claude-<PROFILE_CLAUDE>` | `/home/dev/.claude` | `CLAUDE_CONFIG_DIR=/home/dev/.claude` |
-| `aidc-codex-<PROFILE_CODEX>` | `/home/dev/.codex` | `CODEX_HOME=/home/dev/.codex` |
-| `aidc-shell-<PROFILE_SHELL>` | `/home/dev/.local/state/shell` | `HISTFILE=/home/dev/.local/state/shell/zsh_history` |
+| `aidc-claude-<PROFILE_CLAUDE>` | `/home/vscode/.claude` | `CLAUDE_CONFIG_DIR=/home/vscode/.claude` |
+| `aidc-codex-<PROFILE_CODEX>` | `/home/vscode/.codex` | `CODEX_HOME=/home/vscode/.codex` |
+| `aidc-shell-<PROFILE_SHELL>` | `/home/vscode/.local/state/shell` | `HISTFILE=/home/vscode/.local/state/shell/zsh_history` |
 | `projects/<p>/` (bind) | `/workspaces/<p>` | — |
 | `.devcontainer/` (bind, read-only) | `/opt/aidc/devcontainer` | — |
 
@@ -79,11 +79,13 @@ generator writes every bind source as an absolute host path, because Compose
 resolves relative paths against the first file's directory. An empty volume
 takes the ownership of the image's mount point (*to verify*, AC2). `CLAUDE_CONFIG_DIR` holds `.claude.json` (*verified*, spike 2026-09-26);
 Codex keeps `auth.json` in `CODEX_HOME` under the file store (*verified*,
-spike 2026-09-27, after a keyring login failed).
+spike 2026-09-27, after a keyring login failed). The fragment also sets
+`hostname: <p>`, so the profile name identifies the container from inside
+the shell (developer ruling, first VS Code use).
 
 ### 3.3 Tools config copy and lock
 
-All steps run as `dev`, from `/`, with inherited `MISE_*` variables removed
+All steps run as `vscode`, from `/`, with inherited `MISE_*` variables removed
 and the two fixed ones set again (the v1 `mise-isolation.sh` allowlist), under
 the tools lock `/opt/aidc/tools/.lock`. *Copy* always means: write
 `/opt/aidc/devcontainer/mise.toml` to a temporary file in the volume, then rename
@@ -219,14 +221,14 @@ boundary.
 `.local/<p>/.devcontainer/devcontainer.json`, written with `jq`:
 
 - `name: aidc-<p>`, `service: workspace`, `workspaceFolder: /workspaces/<p>`,
-  `remoteUser: dev`;
+  `remoteUser: vscode`;
 - `dockerComposeFile`: the absolute path of `.devcontainer/compose.yaml`, then
   `../compose.yaml`;
 - `overrideCommand: false`, so the entrypoint and command stay (*to verify*);
 - `updateRemoteUserUID: false`, because the build already uses the host UID.
 
 `.local/<p>/compose.yaml`, written as JSON (valid YAML): `name: aidc-<p>`,
-build arguments `USER_UID` and `USER_GID`, the volumes and mounts of §3.2
+`hostname: <p>`, build arguments `USER_UID` and `USER_GID`, the volumes and mounts of §3.2
 except the read-only `.devcontainer/` bind, which the shared Compose file owns,
 the environment of §3.1, and the socket bind when opted in. The Dev
 Containers CLI takes the project name from `COMPOSE_PROJECT_NAME`, then `.env`
@@ -272,7 +274,7 @@ Linux path fails). "Rebuild Container" reads the same files.
 - **`profile.env` syntax.** Only whole-line `#` comments are allowed. Values
   are literal: quotes are kept as characters and no expansion takes place. A
   `DOCKER_SOCKET` value other than `on` or `off` is rejected.
-- **Shell.** The login shell of `dev` is zsh. The minimal config is
+- **Shell.** The login shell of `vscode` is zsh. The minimal config is
   `/etc/zsh/zshrc` in the image. It runs `mise activate zsh`, then registers
   the launcher `chpwd` and `precmd` hooks and sets the history options.
 - **Host tools** in the root `mise.toml`, pinned: the Dev Containers CLI,

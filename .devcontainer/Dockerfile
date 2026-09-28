@@ -82,9 +82,12 @@ RUN chmod -R a+rX,go-w /usr/local/lib/aidc /etc/claude-code /etc/codex \
 # the zshrc hooks restore the order.
 ENV PATH=/usr/local/lib/aidc/launchers:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
-# The dev user carries the host UID and GID (AC2). Declared after the layers
-# above, so a different UID or GID reuses them. Every mount point is owned by
-# dev, parents included, so an empty volume takes dev's ownership (TD §3.2).
+# The vscode user carries the host UID and GID (AC2). Declared after the
+# layers above, so a different UID or GID reuses them. Every mount point is
+# owned by vscode, parents included, so an empty volume takes vscode's
+# ownership (TD §3.2). debian:trixie-slim has no user or group named
+# `vscode` and no account at UID/GID 1000, so the common host UID/GID does
+# not collide with a base-image account (verified against the pinned base).
 ARG USER_UID
 ARG USER_GID
 RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
@@ -99,15 +102,15 @@ RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
     echo "UID ${USER_UID} is already used by ${user} in the base image" >&2; exit 1; \
   fi \
   && if ! group="$(getent group "${USER_GID}" | cut -d: -f1)" || [ -z "${group}" ]; then \
-    group=dev && groupadd -g "${USER_GID}" "${group}"; \
+    group=vscode && groupadd -g "${USER_GID}" "${group}"; \
   fi \
-  && useradd -l -u "${USER_UID}" -g "${group}" -m -d /home/dev -s /usr/bin/zsh dev \
-  && install -o dev -g "${group}" -m 0644 /dev/null /home/dev/.zshrc \
+  && useradd -l -u "${USER_UID}" -g "${group}" -m -d /home/vscode -s /usr/bin/zsh vscode \
+  && install -o vscode -g "${group}" -m 0644 /dev/null /home/vscode/.zshrc \
   && install -d -o root -g root -m 0755 /opt/aidc \
-  && for dir in /home/dev/.claude /home/dev/.codex /home/dev/.local /home/dev/.local/state \
-    /home/dev/.local/state/shell /opt/aidc/tools /workspaces; do \
-    install -d -o dev -g "${group}" -m 0755 "${dir}"; \
+  && for dir in /home/vscode/.claude /home/vscode/.codex /home/vscode/.local /home/vscode/.local/state \
+    /home/vscode/.local/state/shell /opt/aidc/tools /workspaces; do \
+    install -d -o vscode -g "${group}" -m 0755 "${dir}"; \
   done
 
-USER dev
-WORKDIR /home/dev
+USER vscode
+WORKDIR /home/vscode

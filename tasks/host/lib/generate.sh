@@ -53,6 +53,7 @@ aidc::generate() {
 
   if ! jq -n \
     --arg name "aidc-$profile" \
+    --arg hostname "$profile" \
     --arg uid "$uid" \
     --arg gid "$gidnum" \
     --arg tools "$vol_tools" \
@@ -74,14 +75,14 @@ aidc::generate() {
       | with_entries(select(.value != ""))) as $env
     | ([
         {type: "volume", source: $tools, target: "/opt/aidc/tools"},
-        {type: "volume", source: $claude, target: "/home/dev/.claude"},
-        {type: "volume", source: $codex, target: "/home/dev/.codex"},
-        {type: "volume", source: $shell, target: "/home/dev/.local/state/shell"},
+        {type: "volume", source: $claude, target: "/home/vscode/.claude"},
+        {type: "volume", source: $codex, target: "/home/vscode/.codex"},
+        {type: "volume", source: $shell, target: "/home/vscode/.local/state/shell"},
         {type: "bind", source: $project, target: $workspace}
       ] + (if $sockon then
             [{type: "bind", source: "/var/run/docker.sock", target: "/var/run/docker.sock"}]
           else [] end)) as $volumes
-    | ({build: {args: {USER_UID: $uid, USER_GID: $gid}}, volumes: $volumes}
+    | ({hostname: $hostname, build: {args: {USER_UID: $uid, USER_GID: $gid}}, volumes: $volumes}
         + (if ($env | length) > 0 then {environment: $env} else {} end)
         + (if $sockon then {group_add: [$dgid]} else {} end)) as $workspace_svc
     | {
@@ -107,7 +108,7 @@ aidc::generate() {
       dockerComposeFile: [$shared, "../compose.yaml"],
       service: "workspace",
       workspaceFolder: $workspace,
-      remoteUser: "dev",
+      remoteUser: "vscode",
       overrideCommand: false,
       updateRemoteUserUID: false
     }' >"$stage/.devcontainer/devcontainer.json"; then

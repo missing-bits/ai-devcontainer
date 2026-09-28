@@ -36,7 +36,7 @@ toml_keys() {
   local f="$D/compose.yaml"
   grep -q -x '    image: aidc-workspace:local' "$f"
   grep -q -x '    init: true' "$f"
-  grep -q -x '    user: dev' "$f"
+  grep -q -x '    user: vscode' "$f"
   grep -q -x '      DISABLE_UPDATES: "1"' "$f"
   grep -q -x '      - .:/opt/aidc/devcontainer:ro' "$f"
 }
@@ -45,7 +45,7 @@ toml_keys() {
   local f="$D/compose.yaml"
   grep -q -x '      MISE_DATA_DIR: /opt/aidc/tools/mise' "$f"
   grep -q -x '      MISE_GLOBAL_CONFIG_FILE: /opt/aidc/tools/mise.toml' "$f"
-  grep -q -x '      CLAUDE_CONFIG_DIR: /home/dev/.claude' "$f"
-  grep -q -x '      CODEX_HOME: /home/dev/.codex' "$f"
-  grep -q -x '      HISTFILE: /home/dev/.local/state/shell/zsh_history' "$f"
+  grep -q -x '      CLAUDE_CONFIG_DIR: /home/vscode/.claude' "$f"
+  grep -q -x '      CODEX_HOME: /home/vscode/.codex' "$f"
+  grep -q -x '      HISTFILE: /home/vscode/.local/state/shell/zsh_history' "$f"
 }

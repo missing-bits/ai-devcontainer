@@ -8,15 +8,15 @@ services:
       context: .
     image: aidc-workspace:local
     init: true
-    user: dev
+    user: vscode
     entrypoint: ["/usr/local/lib/aidc/bin/aidc-entrypoint"]
     command: ["sleep", "infinity"]
     environment:
       DISABLE_UPDATES: "1"
       MISE_DATA_DIR: /opt/aidc/tools/mise
       MISE_GLOBAL_CONFIG_FILE: /opt/aidc/tools/mise.toml
-      CLAUDE_CONFIG_DIR: /home/dev/.claude
-      CODEX_HOME: /home/dev/.codex
-      HISTFILE: /home/dev/.local/state/shell/zsh_history
+      CLAUDE_CONFIG_DIR: /home/vscode/.claude
+      CODEX_HOME: /home/vscode/.codex
+      HISTFILE: /home/vscode/.local/state/shell/zsh_history
     volumes:
       - .:/opt/aidc/devcontainer:ro

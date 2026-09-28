@@ -38,9 +38,9 @@ claude_plugin_count() {
     return 1
   }
 
-  run aidc_it_exec "$p1" test -e /home/dev/.claude/.aidc/plugins-initialized
+  run aidc_it_exec "$p1" test -e /home/vscode/.claude/.aidc/plugins-initialized
   assert_success
-  run aidc_it_exec "$p1" test -e /home/dev/.codex/.aidc/plugins-initialized
+  run aidc_it_exec "$p1" test -e /home/vscode/.codex/.aidc/plugins-initialized
   assert_success
 
   run aidc_it_exec "$p1" claude plugin list --json
@@ -96,7 +96,7 @@ claude_plugin_count() {
     return 1
   }
 
-  run aidc_it_exec "$p2" test -e /home/dev/.claude/.aidc/plugins-initialized
+  run aidc_it_exec "$p2" test -e /home/vscode/.claude/.aidc/plugins-initialized
   assert_success
   run aidc_it_exec "$p2" claude plugin list --json
   assert_success
