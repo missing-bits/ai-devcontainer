@@ -1,0 +1,42 @@
+{
+  "installed": [
+    {
+      "pluginId": "superpowers@claude-plugins-official",
+      "name": "superpowers",
+      "marketplaceName": "claude-plugins-official",
+      "version": "6.4.1",
+      "installed": true,
+      "enabled": true,
+      "source": {
+        "source": "git",
+        "url": "https://github.com/obra/superpowers.git",
+        "sha": "5bf4e78011075bcfc0dc295f0724994cd123ee71"
+      },
+      "marketplaceSource": {
+        "sourceType": "git",
+        "source": "https://github.com/anthropics/claude-plugins-official.git"
+      },
+      "installPolicy": "AVAILABLE",
+      "authPolicy": "ON_INSTALL"
+    },
+    {
+      "pluginId": "elements-of-style@superpowers-marketplace",
+      "name": "elements-of-style",
+      "marketplaceName": "superpowers-marketplace",
+      "version": "1.0.0",
+      "installed": true,
+      "enabled": false,
+      "source": {
+        "source": "git",
+        "url": "https://github.com/obra/the-elements-of-style.git"
+      },
+      "marketplaceSource": {
+        "sourceType": "git",
+        "source": "https://github.com/obra/superpowers-marketplace.git"
+      },
+      "installPolicy": "AVAILABLE",
+      "authPolicy": "ON_INSTALL"
+    }
+  ],
+  "available": []
+}

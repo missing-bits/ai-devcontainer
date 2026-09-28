@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Plugin initialization: `aidc-plugins init claude|codex` (TD §3.5). Once per
+# agent state profile, under its state lock, adds the catalog marketplaces and
+# installs the default plugins the CLI does not list, then writes the plugin
+# marker. Only native CLI commands, run through the launchers; a listed
+# plugin, disabled ones included, is never installed again. Failures are
+# logged and leave the marker absent, so the next start retries (TD §6).
+#
+# AIDC_DEVCONTAINER_DIR is a test seam: production sets none and gets the
+# read-only mount.
+set -euo pipefail
+AIDC_BIN="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+source "$AIDC_BIN/../lib/common.sh"
+
+catalog="${AIDC_DEVCONTAINER_DIR:-/opt/aidc/devcontainer}/plugins.json"
+
+usage() {
+	aidc::die "usage: aidc-plugins init claude|codex"
+}
+
+[ "$#" -eq 2 ] && [ "$1" = init ] || usage
+agent="$2"
+case "$agent" in
+claude)
+	state="${CLAUDE_CONFIG_DIR:-/home/dev/.claude}"
+	listed_marketplaces='[.[] | select(.source == "github") | .repo]'
+	listed_plugins='[.[].id]'
+	;;
+codex)
+	state="${CODEX_HOME:-/home/dev/.codex}"
+	listed_marketplaces='[.marketplaces[].marketplaceSource.source]'
+	listed_plugins='[.installed[].pluginId]'
+	;;
+*) usage ;;
+esac
+cli="$AIDC_BIN/../launchers/$agent"
+marker="$state/.aidc/plugins-initialized"
+
+[ ! -e "$marker" ] || exit 0
+
+mkdir -p "$state/.aidc" || aidc::die "cannot create $state/.aidc"
+exec 9>>"$state/.aidc/lock"
+flock 9
+[ ! -e "$marker" ] || exit 0
+
+failed=0
+
+# run_cli <args...>: runs the agent CLI; a failure is logged and counted.
+run_cli() {
+	if ! "$cli" "$@"; then
+		aidc::warn "failed: $agent $*"
+		failed=1
+	fi
+}
+
+# listed <filter> <args...>: runs the CLI listing `<args...> --json` and
+# prints what <filter> selects from it, one per line.
+listed() {
+	local filter="$1" json
+	shift
+	json="$("$cli" "$@" --json)" || return 1
+	jq -r "$filter | .[]" <<<"$json"
+}
+
+# missing <catalog key> <listed>: prints the catalog entries of <key> whose
+# listed form is absent from <listed>.
+missing() {
+	jq -r --arg agent "$agent" --arg key "$1" --arg listed "$2" '
+		($listed | split("\n")) as $have
+		| .[$agent][$key][]
+		| select(
+			(if $key == "marketplaces" and $agent == "codex"
+			 then "https://github.com/\(.).git" else . end) as $form
+			| $have | index([$form]) | not)
+	' "$catalog"
+}
+
+have="$(listed "$listed_marketplaces" plugin marketplace list)" ||
+	aidc::die "failed: $agent plugin marketplace list --json; nothing installed"
+todo="$(missing marketplaces "$have")" || aidc::die "cannot read $catalog"
+while IFS= read -r repo; do
+	[ -n "$repo" ] || continue
+	if [ "$agent" = claude ]; then
+		run_cli plugin marketplace add "$repo" --scope user
+	else
+		run_cli plugin marketplace add "$repo"
+	fi
+done <<<"$todo"
+
+have="$(listed "$listed_plugins" plugin list)" ||
+	aidc::die "failed: $agent plugin list --json; no plugin installed"
+todo="$(missing plugins "$have")" || aidc::die "cannot read $catalog"
+while IFS= read -r id; do
+	[ -n "$id" ] || continue
+	if [ "$agent" = claude ]; then
+		run_cli plugin install "$id" --scope user
+	else
+		run_cli plugin add "$id"
+	fi
+done <<<"$todo"
+
+if [ "$failed" -ne 0 ]; then
+	aidc::die "plugin initialization for $agent incomplete; the next start retries"
+fi
+date -u +%Y-%m-%dT%H:%M:%SZ >"$marker" || aidc::die "cannot write $marker"
+aidc::info "plugin initialization for $agent complete"

@@ -1,0 +1,11 @@
+{ "claude": { "marketplaces": ["anthropics/claude-plugins-official",
+                               "obra/superpowers-marketplace",
+                               "missing-bits/claude-plugins"],
+              "plugins": ["superpowers@claude-plugins-official",
+                          "elements-of-style@superpowers-marketplace",
+                          "working-process@missing-bits",
+                          "project-memory@missing-bits"] },
+  "codex":  { "marketplaces": ["anthropics/claude-plugins-official",
+                               "obra/superpowers-marketplace"],
+              "plugins": ["superpowers@claude-plugins-official",
+                          "elements-of-style@superpowers-marketplace"] } }
