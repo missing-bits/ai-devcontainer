@@ -35,7 +35,8 @@ aidc::generate() {
   fi
 
   local stage vol_tools vol_claude vol_codex vol_shell project workspace uid gidnum
-  stage="$(mktemp -d)" || aidc::die "generate: cannot create a staging directory"
+  # Staged beside $out so the final mv is a same-filesystem rename.
+  stage="$(mktemp -d "$(dirname -- "$out")/.$profile.XXXXXX")" || aidc::die "generate: cannot create a staging directory"
   mkdir -- "$stage/.devcontainer" || aidc::_gen_fail "$stage" "generate: cannot create the staging .devcontainer directory"
 
   vol_tools="aidc-tools-$profile"

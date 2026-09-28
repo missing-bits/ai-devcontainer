@@ -13,18 +13,23 @@ aidc::require_name profile "$name"
 aidc::profile_lock "$name" lock_fd
 
 out="$AIDC_ROOT/.local/$name"
-# TD SS3.9: tear down against the generated files (Compose picks up
-# compose.yaml from the working directory) when they still exist, otherwise
-# fall back to the com.docker.compose.project=aidc-<name> label alone.
+# TD SS3.9: tear down against the generated files when they still exist, so
+# Compose picks up compose.yaml from the working directory; otherwise remove
+# containers by the com.docker.compose.project=aidc-<name> label explicitly,
+# rather than a bare `compose down` elsewhere, which could pick up a stray
+# compose file or an exported COMPOSE_FILE.
 if [ -d "$out" ]; then
   (cd "$out" && docker compose -p "aidc-$name" down)
 else
-  (cd "$AIDC_ROOT" && docker compose -p "aidc-$name" down)
+  docker ps -aq --filter "label=com.docker.compose.project=aidc-$name" | xargs -r docker rm -f
 fi
 
-# Never removes a state volume (Claude, Codex, shell); tolerant of an
-# already-removed tools volume so a rerun succeeds.
-docker volume rm "aidc-tools-$name" >/dev/null 2>&1 || true
+# Never removes a state volume (Claude, Codex, shell). Tolerant only of an
+# already-removed tools volume; any other failure (in use, a daemon error)
+# exits non-zero, per TD SS6 report-and-retry.
+if docker volume inspect "aidc-tools-$name" >/dev/null 2>&1; then
+  docker volume rm "aidc-tools-$name" >/dev/null
+fi
 
 rm -rf -- "$out"
 

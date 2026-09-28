@@ -8,7 +8,7 @@ setup() {
   mkdir -p "$STUB_BIN"
   CALLS="$BATS_TEST_TMPDIR/calls.log"
   : >"$CALLS"
-  for cmd in docker devcontainer code; do
+  for cmd in devcontainer code; do
     cat >"$STUB_BIN/$cmd" <<STUB
 #!/usr/bin/env bash
 printf '%s %s\n' "$cmd" "\$*" >>"$CALLS"
@@ -16,6 +16,29 @@ exit 0
 STUB
     chmod +x "$STUB_BIN/$cmd"
   done
+
+  # docker's stub can be told, per test, to fail 'volume rm' or 'compose ...
+  # down' (STUB_DOCKER_VOLUME_RM_FAIL / STUB_DOCKER_COMPOSE_DOWN_FAIL), and it
+  # answers a label-filtered 'ps -aq' with one fake container ID so the
+  # label-fallback pipeline in profile:remove has something to act on.
+  cat >"$STUB_BIN/docker" <<'STUB'
+#!/usr/bin/env bash
+printf 'docker %s\n' "$*" >>"$CALLS"
+case "$*" in
+"volume rm "*)
+  [ -z "${STUB_DOCKER_VOLUME_RM_FAIL:-}" ] || exit 1
+  ;;
+"compose -p "*" down")
+  [ -z "${STUB_DOCKER_COMPOSE_DOWN_FAIL:-}" ] || exit 1
+  ;;
+"ps -aq --filter label=com.docker.compose.project="*)
+  echo cid-demo
+  ;;
+esac
+exit 0
+STUB
+  chmod +x "$STUB_BIN/docker"
+
   PATH="$STUB_BIN:$PATH"
   export PATH CALLS
 }
@@ -100,6 +123,7 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   code_task
   assert_failure
   assert_output_contains "profiles/"
+  assert_output_contains "demo"
 }
 
 @test "profile:remove rejects invalid names and touches nothing" {
@@ -114,15 +138,18 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   done
 }
 
-@test "profile:remove tears down a profile, keeps state, and is idempotent" {
+@test "profile:remove tears down a profile via compose, keeps state, and is idempotent via the label" {
   new demo
   code_task demo
   assert_success
   : >"$CALLS"
 
+  # First run: .local/demo still exists, so the compose-down branch runs.
   remove demo
   assert_success
   grep -q "^docker compose -p aidc-demo down\$" "$CALLS"
+  ! grep -q "^docker ps -aq" "$CALLS"
+  grep -q "^docker volume inspect aidc-tools-demo\$" "$CALLS"
   grep -q "^docker volume rm aidc-tools-demo\$" "$CALLS"
   ! grep -q "volume rm aidc-claude" "$CALLS"
   ! grep -q "volume rm aidc-codex" "$CALLS"
@@ -132,10 +159,44 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   [ -d "$AIDC_ROOT/profiles/demo" ]
   [ -d "$AIDC_ROOT/projects/demo" ]
 
+  # Second run: .local/demo is gone, so removal is by label, never a bare
+  # 'compose down' that could pick up a stray file or exported COMPOSE_FILE.
   : >"$CALLS"
   remove demo
   assert_success
-  grep -q "^docker compose -p aidc-demo down\$" "$CALLS"
+  ! grep -q "^docker compose" "$CALLS"
+  grep -q "^docker ps -aq --filter label=com.docker.compose.project=aidc-demo\$" "$CALLS"
+  grep -q "^docker rm -f cid-demo\$" "$CALLS"
+}
+
+@test "a failing docker volume rm makes profile:remove exit non-zero and keep the generated files" {
+  new demo
+  code_task demo
+  assert_success
+  : >"$CALLS"
+
+  export STUB_DOCKER_VOLUME_RM_FAIL=1
+  remove demo
+  unset STUB_DOCKER_VOLUME_RM_FAIL
+  assert_failure
+  grep -q "^docker volume rm aidc-tools-demo\$" "$CALLS"
+  [ -d "$AIDC_ROOT/.local/demo" ]
+  [ "$(cat "$AIDC_ROOT/.local/active-profile")" = demo ]
+}
+
+@test "a failing docker compose down aborts before .local/<p> is removed" {
+  new demo
+  code_task demo
+  assert_success
+  : >"$CALLS"
+
+  export STUB_DOCKER_COMPOSE_DOWN_FAIL=1
+  remove demo
+  unset STUB_DOCKER_COMPOSE_DOWN_FAIL
+  assert_failure
+  ! grep -q "^docker volume rm" "$CALLS"
+  [ -d "$AIDC_ROOT/.local/demo" ]
+  [ "$(cat "$AIDC_ROOT/.local/active-profile")" = demo ]
 }
 
 @test "mise registers the three profile tasks" {
