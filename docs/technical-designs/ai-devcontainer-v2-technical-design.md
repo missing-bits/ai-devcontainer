@@ -57,7 +57,7 @@ counts as unset.
 | `DOCKER_SOCKET` | `on`, `off` | `off` | with `on`: a bind of `/var/run/docker.sock` and `group_add` of its host GID |
 | `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`, `GIT_SSH_COMMAND` | literal text | not set | environment variables of the same name |
 
-Names match `^[a-z0-9][a-z0-9_-]*$`. The variables override `user.name`,
+Names match `^[a-z0-9][a-z0-9_-]*$` and are neither `locks` nor `active-profile`. The variables override `user.name`,
 `user.email` and `core.sshCommand` of the copied Git configuration
 (*verified*, Git 2.43.0, probe 2026-09-28). The generator escapes `$` as `$$`,
 because Compose interpolates the fragment.
@@ -94,6 +94,12 @@ it over `mise.toml`, so an interrupted copy leaves the old file or none.
   next start); then `mise install --locked`;
 - `aidc:sync`: copy, `mise lock --global`, `mise install --locked`;
 - `aidc:update`: as `aidc:sync`, then `mise upgrade`.
+
+When `mise lock --global` fails, for example because one declared tool cannot
+be resolved, no `mise.lock` is written and `mise install --locked` would refuse
+every tool. The step then runs plain `mise install`, which installs the tools
+it can resolve (honouring an existing `mise.lock`), names the failure and exits
+non-zero (*verified*, plan-adversary probe 2026-09-28).
 
 One directory holds the copy and `mise.lock`: no staging, no manifest. A copy
 that installs partly stays, and the next run installs the rest. *Verified*,
@@ -174,10 +180,11 @@ result, the launcher exits non-zero and names the documented
 
 The `codex` launcher reuses the tested v1 logic: `--no-daemon` for the
 interactive CLI (no subcommand, `resume`, `fork`) unless `--remote` is given;
-refusal of `agents`, `app-server daemon|proxy` and `remote-control`; only the
-Codex minor version pinned in the tools config copy `/opt/aidc/tools/mise.toml` runs (*verified*,
+refusal of `agents`, `app-server daemon|proxy` and `remote-control` (*verified*,
 0.157.1 source and spike 2026-09-27: without the flag a TUI start copied the
-binary into `CODEX_HOME/packages/` and left a daemon running).
+binary into `CODEX_HOME/packages/` and left a daemon running). The tables in
+`codex-cli.sh` are those verified for 0.157; there is no version guard, and a
+newer Codex is the accepted risk the spec states.
 
 ### 3.7 Policy keys
 
@@ -390,3 +397,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 ### 2026-09-28 — fix from docs/plans/2026-09-28-ai-devcontainer-v2-plan.md
 
 - fixed 2026-09-28 — `profile:code` took the host lock before validating `profile.env`, which creates a file and breaks AC1; license: spec AC1 (change no file); §3.9 now validates first (Codex co-author review of the plan).
+- fixed 2026-09-28 — a failed `mise lock --global` left nothing installable, the Codex version guard compared the pin with itself, and the names `locks`/`active-profile` collided with `.local/` entries (plan-adversary round 1, I2, M8, M7); ruling: 2026-09-28 (developer): plain `mise install` after a failed lock; no Codex guard, both CLIs default to latest with the table risk accepted; the two names rejected.

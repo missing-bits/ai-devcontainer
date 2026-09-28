@@ -93,7 +93,7 @@ files row, §3.9 Host tools.
 - [ ] **Step 3: Implement.** Root `mise.toml` pins `node` (required by the npm backend of
       the Dev Containers CLI), `npm:@devcontainers/cli`, `jq`, `bats`, `shellcheck`,
       `shfmt`; `[task_config] includes = ["tasks/host"]`; tasks `fmt`, `fmt:check`, `lint`,
-      `test` (bats `tests/unit`), `test:integration` (fails with a clear message when
+      `test` (`bats --recursive tests/unit`), `test:integration` (fails with a clear message when
       `docker info` fails; bats `tests/integration`), `check` (depends on `fmt:check`,
       `lint`, `test`). `.gitignore`: `/profiles/`, `/projects/`, `/.local/`.
 - [ ] **Step 4: Run** `mise install && mise run check`. Expected: PASS.
@@ -125,18 +125,16 @@ opt-in in the fragment). TD §3.1, §3.2 (names, absolute bind sources, `externa
 these tasks with `AIDC_ROOT` pointing at a test copy of the repository (v1 `aidc_test_repo`
 pattern).
 
-- [ ] **Step 1: Probes** (network not needed; VS Code needed for the first):
-  - *P2.1, TD §8 URI form:* on Linux and on WSL2, open a running container with `code
-    --folder-uri vscode-remote://dev-container+<hex of .local/<p>>/workspaces/<p>`.
-    Fallback: `profile:code` prints the `.local/<p>` path and runs `code .local/<p>`, and
-    the developer picks "Reopen in Container".
+- [ ] **Step 1: Probe** (P2.1, the URI form, runs in Task 6 Step 5, where a container
+      first exists):
   - *P2.2, TD §8 socket group:* with the opt-in, compare `stat -c %g /var/run/docker.sock`
     on the host with `id -G` inside (Docker Engine and, when available, Docker Desktop).
     Fallback: keep `group_add` of the host GID and document the Desktop case in the README
     as a known case.
 - [ ] **Step 2: Write the failing tests** (Docker, `devcontainer` and `code` stubbed on
       `PATH`, each stub logging its arguments):
-  - `names.bats`: `demo`, `a-1_b` valid; `Bad/Name`, `-x`, `` (empty), `Demo` rejected.
+  - `names.bats`: `demo`, `a-1_b` valid; `Bad/Name`, `-x`, `` (empty), `Demo`, `..`,
+    `locks`, `active-profile` rejected.
   - `profile_env.bats`: comments and blank lines ignored; unknown key rejected with its line
     number; duplicate key rejected; empty value is unset; `PROFILE_CLAUDE=Bad` rejected;
     `DOCKER_SOCKET=yes` rejected; quotes kept literally; a `$` value survives; a trailing `# x` after a
@@ -158,7 +156,9 @@ pattern).
     `docker`/`devcontainer` call; `profile:code demo` runs `docker volume create` for the four
     volumes, `devcontainer up --workspace-folder .local/demo`, then writes
     `.local/active-profile`, then calls `code`; `profile:code` alone uses the active
-    profile, and without one exits non-zero listing `profiles/`; `profile:remove demo` calls
+    profile, and without one exits non-zero listing `profiles/`; `profile:remove ../x`,
+    `profile:remove Bad/Name` and `profile:remove ''` exit non-zero with an identical
+    before/after `find` listing and no `docker` call; `profile:remove demo` calls
     `docker compose -p aidc-demo down` and `docker volume rm aidc-tools-demo`, removes
     `.local/demo/`, clears `active-profile` naming `demo`, keeps `profiles/demo/` and
     `projects/demo/`, never removes a state volume, and succeeds when run again with nothing
@@ -179,7 +179,8 @@ the Codex daemon guard, and the shell files that keep the launchers first on `PA
 - Create (adapted copies): `.devcontainer/lib/mise-isolation.sh`,
   `.devcontainer/lib/codex-cli.sh`, `.devcontainer/launchers/codex`,
   `tests/unit/container/launchers.bats`
-- Create: `.devcontainer/launchers/claude`, `.devcontainer/shell/zshrc`,
+- Create: `.devcontainer/lib/common.sh` (trimmed from v1 to `aidc::die`, `aidc::warn`,
+  `aidc::info`; no `bounds.sh`), `.devcontainer/launchers/claude`, `.devcontainer/shell/zshrc`,
   `.devcontainer/shell/aidc-path.sh`, `tests/helpers/stub-mise.bash`
 
 **Covers:** AC3 (unit half); AC6 (daemon half, unit). TD §3.6, §3.9 (Reused v1 files,
@@ -206,10 +207,9 @@ cases). Copy v1 `.devcontainer/profile.d/aidc-path.sh` as `shell/aidc-path.sh`.
     added with `--remote` or `--no-daemon`; option values and words after `--` never read as
     flags; `agents`, `app-server daemon|proxy`, `remote-control` refused; other commands
     pass through.
-  - `codex refuses a resolved version outside the minor pinned in /opt/aidc/tools/mise.toml`
-    (path overridable for the test), and `the repository pin of aqua:openai/codex equals
-    AIDC_CODEX_QUALIFIED_MINOR` (runs once Task 4 creates the file).
-  - `zshrc registers the launcher hooks after mise's` — in `zsh -f`, source the file with a
+  - No version guard: drop v1's qualification cases and constant (TD §3.6).
+  - `zshrc registers the launcher hooks after mise's` — skipped when `zsh` is absent; the
+    launcher directory is overridable for the test; in `zsh -f`, source the file with a
     stub `mise activate` that prepends a directory holding a fake `claude`; after `cd` and a
     `precmd` run, `command -v claude` is the launcher; `HISTSIZE`/`SAVEHIST` are 50000 and
     `SHARE_HISTORY` is set.
@@ -232,7 +232,8 @@ cases). Copy v1 `.devcontainer/profile.d/aidc-path.sh` as `shell/aidc-path.sh`.
 (`aidc:status`, a CLI installed later), §4 rows for the tools volume, §5 lock 2, §6.
 
 **Reuse:** v1 `.devcontainer/mise.toml` `[tools]` pins (full aqua keys:
-`aqua:anthropics/claude-code = "2"`, `aqua:openai/codex = "0.157"`, plus the small tools);
+`aqua:anthropics/claude-code = "latest"`, `aqua:openai/codex = "latest"`, plus the small
+tools);
 v1 `.devcontainer/bin/aidc-entrypoint` and `aidc-tools` as reference only (their snapshot
 logic is out of scope).
 
@@ -267,7 +268,7 @@ logic is out of scope).
   - `an interrupted copy leaves the old file` — stub `mv` fails; the old `mise.toml` is
     unchanged and no temp file is left.
   - `a failing install exits non-zero and names the failed tools` while the others were
-    requested.
+    requested; `a failing mise lock --global falls back to plain mise install` (TD §3.3).
   - `every mise call runs from / with only the two MISE_* variables`.
   - `the tools lock is taken` — a held `flock` on `.lock` makes `sync` wait (checked with
     `timeout 1`, expecting status 124).
@@ -302,7 +303,8 @@ Catalog content is exactly the JSON of TD §3.5.
       `CLAUDE_CONFIG_DIR`/`CODEX_HOME`, no login needed for local listing):
   - *P5.1, TD §8 plugin list command and JSON, disabled included:* for Claude try `claude
     plugin list --json`; for Codex the matching `codex plugin` listing. Install one plugin,
-    disable it, list again; save both outputs as the fixtures. Fallback: read the CLI's own
+    disable it, list again; save both outputs as the fixtures, with host paths and the
+    user name replaced by neutral ones. Fallback: read the CLI's own
     installed-plugins record in the state directory, whose shape the probe also records.
   - *P5.2, Codex catalog IDs (TD §3.5 "to verify"):* `codex plugin marketplace add` for both
     marketplaces, then `codex plugin add` for both defaults. Fallback: correct the IDs in
@@ -348,8 +350,9 @@ Isolation. TD §2 image, Compose and policy rows, §3.2 mount points, §3.7, §3
 **Reuse:** v1 `.devcontainer/Dockerfile` for the Docker apt key check, the pinned mise
 download with SHA-256 and the `chmod` of copied files. Drop the base digest argument (TD:
 `FROM debian:trixie-slim`), yq, and `/run/aidc`. Build arguments are `USER_UID`/`USER_GID`
-(TD §3.8). Create `/home/dev/.claude`, `/home/dev/.codex`, `/home/dev/.local/state/shell`,
-`/opt/aidc/tools` and `/workspaces` owned by `dev`.
+(TD §3.8). Create, owned by `dev` and in v1's loop shape so parents are owned too:
+`/home/dev/.claude`, `/home/dev/.codex`, `/home/dev/.local`, `/home/dev/.local/state`,
+`/home/dev/.local/state/shell`, `/opt/aidc/tools` and `/workspaces`.
 
 - [ ] **Step 1: Probes** (Docker, network), in throwaway `debian:trixie-slim` containers
       with the CLIs installed by the pinned mise and the draft policy files bind-mounted at
@@ -365,8 +368,10 @@ download with SHA-256 and the `chmod` of copied files. Drop the base digest argu
     "read-only"` is refused or overridden, and `/etc/codex/config.toml` is read below user
     configuration; record the command that reports the effective settings (Task 7 uses it).
     Fallback: stop and report to the developer; no flag injection without a ruling.
-  - *P6.4, Claude plugin auto-update (TD §8):* with the managed settings, `claude --debug`
-    briefly and look for "Plugin autoupdate: skipped". If it appears, stop and report to
+  - *P6.4, Claude plugin auto-update (TD §8):* with the managed settings, add the official
+    marketplace, enable its auto-update, run `claude --debug` briefly and require a
+    positive plugin auto-update log line; "Plugin autoupdate: skipped" or no line at all
+    fails the probe. On failure stop and report to
     the developer: the spec requires Claude's plugin auto-update to survive the policy.
     Manual checklist item 10 stays.
 - [ ] **Step 2: Write the failing tests** (`policy.bats`, no Docker):
@@ -380,10 +385,17 @@ download with SHA-256 and the `chmod` of copied files. Drop the base digest argu
     `.:/opt/aidc/devcontainer` bind, image `aidc-workspace:local`.
 - [ ] **Step 3: Run** `bats tests/unit/container/policy.bats`. Expected: FAIL.
 - [ ] **Step 4: Implement** the files.
-- [ ] **Step 5: Run** `mise run profile:new demo && mise run profile:code demo` (VS Code may
-      be absent: the `code` step may fail) and `docker exec aidc-demo-workspace-1 cat
-      /opt/aidc/tools/init.status`. Expected: `ok` or `failed` with named steps, and the
-      container running.
+- [ ] **Step 5: Run** with an unused name `smoke<run>`: `mise run profile:new smoke<run> &&
+      mise run profile:code smoke<run>` (VS Code may be absent: the `code` step may fail),
+      then poll `docker exec aidc-smoke<run>-workspace-1 cat /opt/aidc/tools/init.status`
+      until it no longer starts with `running`. Expected: `ok` or `failed` with named steps,
+      and the container running. Also run *P2.1, TD §8 URI form:* on Linux and on WSL2,
+      open the container with `code --folder-uri
+      vscode-remote://dev-container+<hex of .local/<p>>/workspaces/<p>`; fallback:
+      `profile:code` prints the `.local/<p>` path and runs `code .local/<p>`, the developer
+      picks "Reopen in Container", and `profile:code`'s unit test is amended here. Finish
+      with `mise run profile:remove smoke<run>` and `docker volume rm` of its three state
+      volumes.
 - [ ] **Step 6: Run** `mise run check`. Expected: PASS.
 - [ ] **Step 7: Commit** `feat: add workspace image, compose file and policy`
 
@@ -393,7 +405,8 @@ download with SHA-256 and the `chmod` of copied files. Drop the base digest argu
 test:integration`.
 
 **Files:**
-- Create: `tests/helpers/integration.bash`, `tests/integration/00_suite.bats`,
+- Create: `tests/helpers/integration.bash`, `tests/fixtures/compose.test.yaml`,
+  `tests/fixtures/compose.nonet.yaml`, `tests/integration/00_suite.bats`,
   `tests/integration/profiles.bats`, `tests/integration/tools.bats`,
   `tests/integration/policy.bats`, `tests/integration/plugins.bats`,
   `tests/integration/privacy.bats`, `tests/integration/zz_cleanup.bats`
@@ -408,7 +421,15 @@ names exists; each test records the containers and volumes it creates, and clean
 removes exactly those, never by pattern.
 
 **Interfaces:** drives the host tasks of Task 2 through a copied repository (`AIDC_ROOT`);
-`code` is stubbed, `devcontainer` and `docker` are real.
+`code` is stubbed, `devcontainer` and `docker` are real. The shared image
+`aidc-workspace:local` is outside cleanup; the v1 `00_suite.bats`/`zz_cleanup.bats` serve
+only as ordering scaffolding. A test-only Compose file
+`tests/fixtures/compose.test.yaml` adds `GITHUB_TOKEN` as a pass-through environment
+entry (tests only, never the shared file); a second one,
+`tests/fixtures/compose.nonet.yaml`, sets `network_mode: none`. Tests that need either
+start the profile with `docker compose -p aidc-<p> -f .devcontainer/compose.yaml -f
+.local/<p>/compose.yaml -f <test file> up -d` after `profile:code` generated the files.
+Every test that reads `init.status` polls until it no longer starts with `running`.
 
 - [ ] **Step 1: Probes** (manual parts need VS Code or a login):
   - *P7.1, Claude login location (spec, TD §8):* after a manual `claude` login, list new
@@ -417,15 +438,15 @@ removes exactly those, never by pattern.
   - *P7.2, "Rebuild Container" (spec, TD §8):* rebuild a running profile from VS Code;
     tools, state and history stay and the entrypoint runs. Fallback: add `profile:rebuild
     [p]` as `devcontainer up --remove-existing-container`, with a unit test (spec allows it).
-  - *P7.3, concurrent use of one state profile (spec):* two containers on `itest-shared`
+  - *P7.3, concurrent use of one state profile (spec):* two containers on `it<run>-shared`
     run parallel Claude and Codex sessions; login and settings stay intact. Fallback: none
     built; record it in the matrix and report to the developer (the requirement stays).
 - [ ] **Step 2: Write the tests**, each expecting success:
   - `profiles.bats`: `two profiles run at once with their own volume and checkouts` and `id
     -u`/`id -g` inside equal the host's (AC2); `a profile with unset state fields mounts
-    volumes named after itself` and `two profiles naming itest-shared share one Claude and
+    volumes named after itself` and `two profiles naming it<run>-shared share one Claude and
     one Codex volume and a settings file written in one is read in the other` (AC7);
-    `profile:remove` removes the container, `.local/itest-a/` and `aidc-tools-itest-a`,
+    `profile:remove` removes the container, `.local/it<run>-a/` and `aidc-tools-it<run>-a`,
     keeps projects, profiles and all state volumes, and succeeds again (AC11); `a state
     volume survives remove and code` (AC7).
   - `tools.bats`: `claude --version` and `codex --version` match `mise ls` of the copy, also
@@ -447,8 +468,9 @@ removes exactly those, never by pattern.
     untrusted project shows the tools, plugins and the failed initialization` (AC10).
   - `privacy.bats`: build context listing (`docker build` of `.devcontainer/` with a debug
     stage, or `tar` of the context) holds no `profiles`, `projects`, `.local`; no file in
-    the image (`docker run --rm` of the image) or in the running container, `/proc` and
-    `/sys` excluded, contains a `-----BEGIN ... PRIVATE KEY-----` header; `GIT_AUTHOR_NAME` and
+    the image (`docker run --rm` of the image) or in the running container matches
+    `grep -rlIE '^-----BEGIN [A-Z ]*PRIVATE KEY-----'` with `/proc` and `/sys` excluded
+    (text files, line-anchored: the string is compiled into ssh binaries); `GIT_AUTHOR_NAME` and
     `GIT_COMMITTER_EMAIL` from `profile.env` appear in a test commit; the socket exists only
     with `DOCKER_SOCKET=on` (AC12).
 - [ ] **Step 3: Run** `GITHUB_TOKEN=… mise run test:integration`. Expected: PASS; any
@@ -503,3 +525,16 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [blocking] the private-key check relied on file names; license: spec Privacy; key-header scan of image and container.
 - fixed 2026-09-28 — [blocking] the matrix check grepped only tests; license: Task 8 goal; per-row-kind checks.
 - gate 2026-09-28 — propagation: three Files lists used shorthand paths; expanded to full paths.
+
+### 2026-09-28 — plan-adversary, opus 5.5, blocking (round 1, full-document)
+
+- fixed 2026-09-28 — [Important] I1: `bats tests/unit` does not recurse; license: v1 task shape (probe); `--recursive`.
+- fixed 2026-09-28 — [Important] I2: a failed `mise lock --global` blocked every install; ruling: 2026-09-28 (developer); plain `mise install` fallback, TD §3.3 and a Task 4 test.
+- fixed 2026-09-28 — [Important] I3: the key-header scan matched ssh binaries; license: probe; text-only, line-anchored scan.
+- fixed 2026-09-28 — [Important] I4: `GITHUB_TOKEN` had no route into test containers; ruling: 2026-09-28 (developer: temporary, not default); a test-only Compose file.
+- fixed 2026-09-28 — [Important] I5: `~/.local` and `~/.local/state` would be root-owned; license: probe and v1 Dockerfile loop; listed.
+- fixed 2026-09-28 — [Important] I6: `profile:remove` lacked name validation (data loss); license: spec Profiles; tests added.
+- fixed 2026-09-28 — [Important] I7: P2.1 needed a container before one exists; license: plan order; moved to Task 6 Step 5.
+- fixed 2026-09-28 — [Minor] M1: poll `init.status`; M2: no-network via a test-only Compose file; M3: shared image outside cleanup, per-run names everywhere; M4: P6.4 needs a positive log line; M5: zshrc test skips without zsh, overridable path; M6: `common.sh` listed; M9: smoke on an unused name with cleanup; M10: neutral fixtures; license: the round's evidence.
+- fixed 2026-09-28 — [Minor] M7: names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer). M8: the Codex guard is removed and both CLIs default to latest, with the table risk accepted; ruling: 2026-09-28 (developer).
+- signal 2026-09-28 — one diff-scoped round on these fixes suffices.

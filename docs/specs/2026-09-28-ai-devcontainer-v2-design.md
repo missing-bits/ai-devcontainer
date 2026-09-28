@@ -60,8 +60,9 @@ An environment profile `<p>` has:
 - its own container and its own profile tools volume.
 
 Profiles run concurrently. The container user matches the host UID and GID.
-A profile or state profile name that does not match `^[a-z0-9][a-z0-9_-]*$`
-is rejected before any file or Docker change.
+A profile or state profile name that does not match `^[a-z0-9][a-z0-9_-]*$`,
+or that equals `locks` or `active-profile` (entries of `.local/`), is rejected
+before any file or Docker change.
 
 ## Mise scopes
 
@@ -84,7 +85,12 @@ is rejected before any file or Docker change.
   exits non-zero.
 - CLI self-update is off: Claude Code through managed settings and
   `DISABLE_UPDATES`; Codex through `requirements.toml` and a launcher that
-  never starts the managed daemon.
+  adds `--no-daemon` so the managed daemon does not start.
+- Both agent CLIs default to their latest version. Accepted risk: the `codex`
+  launcher recognises commands and options through tables verified for Codex
+  0.157, so a newer Codex may bring a command or option the tables miss, and
+  the launcher may then fail to add `--no-daemon` or to refuse a daemon
+  command. Pinning an older version is the developer's choice.
 
 ## Agent state and login
 
@@ -256,3 +262,4 @@ command can control every container on the host.
 - fixed 2026-09-28 — integrity-class note: Claude credential location stated as fact but open in TD §8; license: TD §8; the spec now marks the exact file to verify.
 - signal 2026-09-28 — another architect round would not earn its cost; a propagation audit after the fixes and the integrity audit at the consumption gate suffice.
 - fixed 2026-09-28 — integrity audit (consumption gate, with the TD): 8 defects and 14 implementer questions disposed in place; license: the audit's two-quote proofs and the v2 brief; spec wording (state profiles, container task mechanism marked to verify, open items, `test:integration`) and TD §3.3–§3.9.
+- fixed 2026-09-28 — both agent CLIs default to latest and the Codex launcher has no version guard, with the table risk accepted; names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer, plan-adversary round 1 M7/M8).
