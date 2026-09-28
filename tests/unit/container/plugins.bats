@@ -20,7 +20,7 @@ setup() {
   export CLAUDE_CONFIG_DIR="$BATS_TEST_TMPDIR/claude-state"
   export CODEX_HOME="$BATS_TEST_TMPDIR/codex-state"
   export STUB_DIR="$BATS_TEST_TMPDIR"
-  unset STUB_FAIL
+  unset STUB_FAIL STUB_FAIL_LIST
   printf '[]\n' >"$STUB_DIR/claude-marketplaces.json"
   printf '[]\n' >"$STUB_DIR/claude-plugins.json"
   printf '{"marketplaces": []}\n' >"$STUB_DIR/codex-marketplaces.json"
@@ -36,7 +36,7 @@ fail() { [ "$1" = "${STUB_FAIL-}" ] && { printf 'stub failure: %s\n' "$1" >&2; e
 add() { jq "$2" "$1" >"$1.new" && mv "$1.new" "$1"; }
 case "$*" in
 "plugin marketplace list --json") cat "$m" ;;
-"plugin list --json") cat "$p" ;;
+"plugin list --json") [ "${STUB_FAIL_LIST-}" != plugins ] || exit 1; cat "$p" ;;
 "plugin marketplace add "*" --scope user") fail "$4"; add "$m" ". + [{name: \"x\", source: \"github\", repo: \"$4\"}]" ;;
 "plugin install "*" --scope user") fail "$3"; add "$p" ". + [{id: \"$3\", enabled: true}]" ;;
 *) exit 2 ;;
@@ -52,13 +52,17 @@ fail() { [ "$1" = "${STUB_FAIL-}" ] && { printf 'stub failure: %s\n' "$1" >&2; e
 add() { jq "$2" "$1" >"$1.new" && mv "$1.new" "$1"; }
 case "$*" in
 "plugin marketplace list --json") cat "$m" ;;
-"plugin list --json") cat "$p" ;;
+"plugin list --json") [ "${STUB_FAIL_LIST-}" != plugins ] || exit 1; cat "$p" ;;
 "plugin marketplace add "*) fail "$4"; add "$m" ".marketplaces += [{name: \"x\", marketplaceSource: {sourceType: \"git\", source: \"https://github.com/$4.git\"}}]" ;;
 "plugin add "*) fail "$3"; add "$p" ".installed += [{pluginId: \"$3\", enabled: true}]" ;;
 *) exit 2 ;;
 esac
 EOF
   chmod +x "$tree/launchers/claude" "$tree/launchers/codex"
+}
+
+teardown() {
+  touch "$STUB_DIR/release"
 }
 
 state_of() {
@@ -107,17 +111,18 @@ codex_all=(
 }
 
 @test "the marker is rechecked after the lock" {
-  local aidc="$CLAUDE_CONFIG_DIR/.aidc" pid _
+  local aidc="$CLAUDE_CONFIG_DIR/.aidc" lock pid _
   mkdir -p "$aidc"
+  lock="$(readlink -f "$aidc/lock")"
   flock "$aidc/lock" bash -c "while [ ! -e '$STUB_DIR/release' ]; do sleep 0.05; done" 3>&- &
   wait_for_lock_held "$aidc/lock"
   "$P" init claude 3>&- &
   pid=$!
   for _ in $(seq 1 100); do
-    [ "$(readlink "/proc/$pid/fd/9" 2>/dev/null)" = "$aidc/lock" ] && break
+    [ "$(readlink "/proc/$pid/fd/9" 2>/dev/null)" = "$lock" ] && break
     sleep 0.05
   done
-  [ "$(readlink "/proc/$pid/fd/9")" = "$aidc/lock" ]
+  [ "$(readlink "/proc/$pid/fd/9")" = "$lock" ]
   touch "$aidc/plugins-initialized"
   touch "$STUB_DIR/release"
   wait "$pid"
@@ -177,7 +182,7 @@ codex_all=(
   export STUB_FAIL=working-process@missing-bits
   run "$P" init claude
   assert_failure
-  unset STUB_FAIL
+  unset STUB_FAIL STUB_FAIL_LIST
   : >"$STUB_DIR/calls"
   run "$P" init claude
   assert_success
@@ -202,6 +207,25 @@ codex_all=(
   run "$P" init codex
   assert_failure
   assert_output_contains "codex plugin marketplace add obra/superpowers-marketplace"
+  [ ! -e "$CODEX_HOME/.aidc/plugins-initialized" ]
+}
+
+@test "a null or empty marketplace listing counts as nothing listed" {
+  printf 'null\n' >"$STUB_DIR/claude-marketplaces.json"
+  printf '{}\n' >"$STUB_DIR/codex-marketplaces.json"
+  run "$P" init claude
+  assert_success
+  run "$P" init codex
+  assert_success
+  assert_changes "${claude_all[@]}" "${codex_all[@]}"
+}
+
+@test "a failing plugin listing aborts with no install and no marker" {
+  export STUB_FAIL_LIST=plugins
+  run "$P" init codex
+  assert_failure
+  assert_output_contains "failed: codex plugin list --json"
+  ! grep -q '^codex plugin add ' "$STUB_DIR/calls"
   [ ! -e "$CODEX_HOME/.aidc/plugins-initialized" ]
 }
 

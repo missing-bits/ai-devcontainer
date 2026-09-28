@@ -24,13 +24,13 @@ agent="$2"
 case "$agent" in
 claude)
 	state="${CLAUDE_CONFIG_DIR:-/home/dev/.claude}"
-	listed_marketplaces='[.[] | select(.source == "github") | .repo]'
-	listed_plugins='[.[].id]'
+	listed_marketplaces='[.[]? | select(.source == "github") | .repo]'
+	listed_plugins='[.[]? | .id]'
 	;;
 codex)
 	state="${CODEX_HOME:-/home/dev/.codex}"
-	listed_marketplaces='[.marketplaces[].marketplaceSource.source]'
-	listed_plugins='[.installed[].pluginId]'
+	listed_marketplaces='[.marketplaces[]? | .marketplaceSource.source]'
+	listed_plugins='[.installed[]? | .pluginId]'
 	;;
 *) usage ;;
 esac
@@ -47,8 +47,9 @@ flock 9
 failed=0
 
 # run_cli <args...>: runs the agent CLI; a failure is logged and counted.
+# Every CLI call closes fd 9, so no forked helper keeps the state lock.
 run_cli() {
-	if ! "$cli" "$@"; then
+	if ! "$cli" "$@" 9>&-; then
 		aidc::warn "failed: $agent $*"
 		failed=1
 	fi
@@ -59,7 +60,7 @@ run_cli() {
 listed() {
 	local filter="$1" json
 	shift
-	json="$("$cli" "$@" --json)" || return 1
+	json="$("$cli" "$@" --json 9>&-)" || return 1
 	jq -r "$filter | .[]" <<<"$json"
 }
 
