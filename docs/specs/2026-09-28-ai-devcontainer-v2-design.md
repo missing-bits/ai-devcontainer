@@ -44,7 +44,7 @@ instead of guarding against them. Terms follow `docs/domain/glossary.md`.
   per-account key selection; a record of the CLI version at the last plugin
   update.
 - Agent sandboxes inside the container (see Isolation).
-- Prompt frameworks and per-profile shell customization.
+- Per-profile shell customization beyond the image's oh-my-zsh defaults.
 - macOS hosts; a Docker daemon inside the container.
 
 ## Profiles
@@ -264,3 +264,4 @@ command can control every container on the host.
 - fixed 2026-09-28 — both agent CLIs default to latest and the Codex launcher has no version guard, with the table risk accepted; names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer, plan-adversary round 1 M7/M8).
 - fixed 2026-09-28 — plugin updates follow each CLI's default behaviour with nothing forced, and Codex's allowed sandbox modes are not restricted (implementation Task 6, P6.3/P6.4); ruling: 2026-09-28 (developer).
 - fixed 2026-09-28 — [Minor] final whole-branch review: two Open verification items probed P4.4 and P6.3 settled; license: acceptance-matrix.md P4.4/P6.3; removed.
+- fixed 2026-09-28 — the container user was `dev`, the hostname the container ID, and zsh had no prompt setup (developer's first VS Code use); ruling: 2026-09-28 (developer): the container user is `vscode`, the hostname is the profile name, and oh-my-zsh (pinned, no self-update) is the zsh base.
