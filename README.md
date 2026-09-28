@@ -154,11 +154,11 @@ through tables in `.devcontainer/lib/codex-cli.sh`, verified against Codex
 0.157's `--help` output. A materially newer Codex may add a command or
 option the tables miss, which could make the launcher fail to add
 `--no-daemon` or fail to refuse a command that needs the managed daemon.
-**When `.devcontainer/mise.toml` moves the Codex pin to a newer minor
-version, re-check the tables in `.devcontainer/lib/codex-cli.sh` against
-that version's `codex --help` (and `codex resume --help`, `codex fork
---help`, `codex app-server --help`) before relying on it.** Pinning an
-older Codex version instead of `latest` is your choice.
+**After any `aidc:update` that moves Codex to a newer minor version,
+re-check the tables in `.devcontainer/lib/codex-cli.sh` against that
+version's `codex --help` (and `codex resume --help`, `codex fork --help`,
+`codex app-server --help`) before relying on it.** Pinning an older Codex
+version instead of `latest` is your choice.
 
 Plugin updates follow each CLI's own default behaviour; nothing here forces
 them on or off. Codex refreshes its marketplace clones at session start on

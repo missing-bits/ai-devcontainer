@@ -66,7 +66,9 @@ implementation plans are versioned; do not ignore `docs/domain/`,
   `mise run test:integration` when Docker is available; report both results.
   `mise run test:integration` needs network access too: it builds the
   workspace image and installs container tools, agent CLIs and plugin
-  marketplaces from GitHub. Export `GITHUB_TOKEN` on the host; the tests
+  marketplaces from GitHub. It builds and keeps `aidc-workspace:local`, the
+  same tag real profiles use, so a profile started right after a test run
+  picks up the tested image. Export `GITHUB_TOKEN` on the host; the tests
   pass it to containers only as an environment variable, never in logs,
   build arguments or persisted configuration.
 - Run `docs/verification/manual-checklist.md` for the items that need VS

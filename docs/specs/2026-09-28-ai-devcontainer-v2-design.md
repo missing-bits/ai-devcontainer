@@ -240,8 +240,6 @@ command can control every container on the host.
 
 - Whether VS Code "Rebuild Container" makes `profile:rebuild` unnecessary.
 - Concurrent use of one Claude and one Codex state profile from two containers.
-- How `mise lock --global` resolves a changed declaration.
-- Whether Codex enforces the sandbox and approval settings.
 - Where exactly Claude keeps its login state inside `CLAUDE_CONFIG_DIR`.
 - The container task mechanism: global tasks, `-C /`, the auto-install setting.
 - The manual VS Code smoke checklist in TD §7.
@@ -265,3 +263,4 @@ command can control every container on the host.
 - fixed 2026-09-28 — integrity audit (consumption gate, with the TD): 8 defects and 14 implementer questions disposed in place; license: the audit's two-quote proofs and the v2 brief; spec wording (state profiles, container task mechanism marked to verify, open items, `test:integration`) and TD §3.3–§3.9.
 - fixed 2026-09-28 — both agent CLIs default to latest and the Codex launcher has no version guard, with the table risk accepted; names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer, plan-adversary round 1 M7/M8).
 - fixed 2026-09-28 — plugin updates follow each CLI's default behaviour with nothing forced, and Codex's allowed sandbox modes are not restricted (implementation Task 6, P6.3/P6.4); ruling: 2026-09-28 (developer).
+- fixed 2026-09-28 — [Minor] final whole-branch review: two Open verification items probed P4.4 and P6.3 settled; license: acceptance-matrix.md P4.4/P6.3; removed.
