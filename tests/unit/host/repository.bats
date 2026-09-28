@@ -9,9 +9,23 @@ load ../../helpers/common
 }
 
 @test "the image context holds none of the private directories" {
-  local compose="$AIDC_SOURCE_ROOT/.devcontainer/docker-compose.yaml"
+  local compose="$AIDC_SOURCE_ROOT/.devcontainer/compose.yaml"
   if [ -f "$compose" ]; then
-    run grep -A2 '^ *build:' "$compose"
+    # Isolate the `workspace` service's own block (from its key to the next
+    # sibling key at the same indentation) so the context check cannot match
+    # a different service's `build:`.
+    run awk '
+      /^[[:space:]]*workspace:[[:space:]]*$/ {
+        match($0, /^[[:space:]]*/); indent = RLENGTH; found = 1; print; next
+      }
+      found {
+        match($0, /^[[:space:]]*/); cur = RLENGTH
+        if ($0 ~ /^[[:space:]]*$/) { print; next }
+        if (cur <= indent) { exit }
+        print
+      }
+    ' "$compose"
+    assert_success
     assert_output_contains "context: ."
   fi
   for path in profiles projects .local; do
