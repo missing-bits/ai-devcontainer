@@ -1,0 +1,24 @@
+#!/usr/bin/env zsh
+# Minimal zsh login-shell config for the aidc image: activates mise, then
+# re-asserts the launcher directory first on PATH after every prompt and
+# directory change, so a project's own mise-provided `claude` or `codex`
+# never shadows the launcher (TD §3.6, §3.9). Sets no options beyond the
+# shared-history ones below.
+
+AIDC_LAUNCHER_DIR="${AIDC_LAUNCHER_DIR:-/usr/local/lib/aidc/launchers}"
+
+HISTSIZE=50000
+SAVEHIST=50000
+setopt SHARE_HISTORY
+
+if command -v mise >/dev/null 2>&1; then
+  eval "$(mise activate zsh)"
+fi
+
+aidc::path_first() {
+  path=("$AIDC_LAUNCHER_DIR" "${(@)path:#$AIDC_LAUNCHER_DIR}")
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd aidc::path_first
+add-zsh-hook chpwd aidc::path_first
