@@ -22,6 +22,9 @@ if [ -d "$out" ]; then
   (cd "$out" && docker compose -p "aidc-$name" down)
 else
   docker ps -aq --filter "label=com.docker.compose.project=aidc-$name" | xargs -r docker rm -f
+  # compose down also removes the project's network; tolerate its absence
+  # here, the same as a compose down run twice would.
+  docker network rm "aidc-${name}_default" >/dev/null 2>&1 || true
 fi
 
 # Never removes a state volume (Claude, Codex, shell). Tolerant only of an

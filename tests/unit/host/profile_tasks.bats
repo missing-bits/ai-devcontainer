@@ -34,6 +34,9 @@ case "$*" in
 "ps -aq --filter label=com.docker.compose.project="*)
   echo cid-demo
   ;;
+"network rm "*)
+  exit 1
+  ;;
 esac
 exit 0
 STUB
@@ -168,6 +171,9 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   ! grep -q "^docker compose" "$CALLS"
   grep -q "^docker ps -aq --filter label=com.docker.compose.project=aidc-demo\$" "$CALLS"
   grep -q "^docker rm -f cid-demo\$" "$CALLS"
+  # The stub fails 'network rm' (simulating an already-removed network);
+  # the task tolerates it and still exits 0.
+  grep -q "^docker network rm aidc-demo_default\$" "$CALLS"
 }
 
 @test "a failing docker volume rm makes profile:remove exit non-zero and keep the generated files" {
