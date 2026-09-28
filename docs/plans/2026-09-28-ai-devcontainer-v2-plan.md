@@ -360,7 +360,7 @@ host probes. Drop the base digest argument (TD:
 `/home/dev/.local/state/shell`, `/opt/aidc/tools` and `/workspaces`.
 
 - [ ] **Step 1: Probes** (Docker, network), in throwaway `debian:trixie-slim` containers
-      with the CLIs installed by the pinned mise and the draft policy files bind-mounted at
+      with the CLIs installed by mise 2026.9.15 and the draft policy files bind-mounted at
       their `/etc` paths:
   - *P6.1, `overrideCommand: false` (TD §3.8):* a two-line Compose service with an
     entrypoint that writes a file, opened by `devcontainer up` with `overrideCommand:
@@ -558,3 +558,4 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [Important] I2: the test Compose files ran after a real first start; license: AC10 and the round-1 I4 ruling; `profile:code` stubbed in those tests, first real start through `docker compose … -f <test file>`, every first start authenticated.
 - fixed 2026-09-28 — [Minor] M1: key scan as root with empty-output assertion; M2: conditional Files for the P2.1 fallback; M3: the smoke test runs in an `AIDC_ROOT` copy; license: the round's evidence.
 - signal 2026-09-28 — one confirming full-document round after these fixes.
+- gate 2026-09-28 — propagation: Task 6 probes named "the pinned mise" without the version; now mise 2026.9.15.
