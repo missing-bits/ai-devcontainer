@@ -376,17 +376,11 @@ values from that release's checksums (the root `mise.toml` floor comes from Task
     "read-only"` is refused or overridden, and `/etc/codex/config.toml` is read below user
     configuration; record the command that reports the effective settings (Task 7 uses it).
     Fallback: stop and report to the developer; no flag injection without a ruling.
-  - *P6.4, Claude plugin auto-update (TD §8):* with the managed settings, add the official
-    marketplace, enable its auto-update, run `claude --debug` briefly and require a
-    positive plugin auto-update log line; "Plugin autoupdate: skipped" or no line at all
-    fails the probe. On failure stop and report to
-    the developer: the spec requires Claude's plugin auto-update to survive the policy.
-    Manual checklist item 10 stays.
 - [ ] **Step 2: Write the failing tests** (`policy.bats`, no Docker):
   - Claude managed settings hold exactly `env.DISABLE_UPDATES="1"`,
-    `env.FORCE_AUTOUPDATE_PLUGINS="1"`, `env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS="1"`.
+    `env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS="1"`.
   - `requirements.toml` holds `check_for_update_on_startup = false`,
-    `cli_auth_credentials_store = "file"`, `allowed_sandbox_modes = ["danger-full-access"]`.
+    `cli_auth_credentials_store = "file"`, and no `allowed_sandbox_modes`.
   - `codex-config.toml` holds `sandbox_mode = "danger-full-access"` and `approval_policy =
     "on-request"`.
   - `compose.yaml` sets `DISABLE_UPDATES=1`, `init: true`, user `dev`, the read-only
@@ -519,7 +513,7 @@ verification items; TD §7 manual checklist.
       `core.sshCommand` blocks the agent (fix: `GIT_SSH_COMMAND=ssh` in `profile.env`), and
       on one server with several accounts the first offered key wins; plugin update
       behaviour per CLI; the fallbacks the probes triggered.
-- [ ] **Step 2: Write** `manual-checklist.md`: the ten TD §7 items, each with the command to
+- [ ] **Step 2: Write** `manual-checklist.md`: the nine TD §7 items, each with the command to
       run and the expected result, plus the spec's open items without a test (Rebuild
       Container vs `profile:rebuild`; concurrent CLI use of one state profile), pointing at
       P7.2 and P7.3.
@@ -575,3 +569,7 @@ verification items; TD §7 manual checklist.
 - signal 2026-09-28 — cap spent; another full round would not earn its cost; a short diff check closes the loop (developer: Codex closure check).
 
 Resolved 2026-09-28 without a fourth adversary round: round 3's fixes landed under cited licenses and developer rulings. The round cap was spent, and the reviewer's stop signal judged a short diff check sufficient. On the developer's order, the Codex closure check reviewed every fix wave and passed (`PASS`). The developer then approved the plan for implementation.
+
+### 2026-09-28 — fix from implementation (Task 6 probes)
+
+- fixed 2026-09-28 — P6.3: Codex rejects an allowed-modes list without `read-only`; P6.4: plugin auto-update is not forced; ruling: 2026-09-28 (developer): both keys dropped, plugin updates follow each CLI's defaults, P6.4 and checklist item 10 removed; `gnupg` in the image.

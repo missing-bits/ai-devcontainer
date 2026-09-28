@@ -33,8 +33,8 @@ All parts are `new`.
 | Host tasks | mise file tasks (bash) | new | root `mise.toml`, `tasks/host/`, small library `tasks/host/lib/` | name validation, `profile.env` parsing, profile creation, generation of `.local/<p>/`, volume creation, `devcontainer up`, opening VS Code, removal, the host profile lock, the active profile, repository checks | any change inside a running container; reading agent state |
 | Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `dev`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/devcontainer` | anything profile-specific |
 | Generated profile files | local files | new | `.local/<p>/compose.yaml` (the profile's Compose fragment) and `.local/<p>/.devcontainer/devcontainer.json` | the profile's project name, build arguments, volume names, mounts, environment and socket opt-in | anything versioned; secrets |
-| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `dev` built with the host UID and GID, volume mount points owned by `dev`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
-| Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude plugin auto-update on, Codex file credentials, Codex sandbox and approval mode | user preferences; files in agent state |
+| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `dev` built with the host UID and GID, volume mount points owned by `dev`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
+| Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude HTTPS marketplace clones, Codex file credentials, Codex default sandbox and approval mode | user preferences; files in agent state |
 | Entrypoint | container executable | new | `.devcontainer/bin/aidc-entrypoint` → `/usr/local/lib/aidc/bin/` | the start sequence (§3.4), the init log and the init result marker, handing over to the keep-alive command whatever happened | tool and plugin logic |
 | Container tasks | mise tasks + bash script | new | `[tasks]` of `.devcontainer/mise.toml` (`aidc:sync`, `aidc:update`, `aidc:status`); `.devcontainer/bin/aidc-tools` shared with the entrypoint; invoked as `MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>`, so the neutral directory is chosen before any configuration loads and no auto-install bypasses the tools lock (*to verify*, §8) | the tools lock, copying the config into the tools volume, `mise install`/`mise upgrade`, the status report | plugin updates |
 | Agent CLI launchers | container executables | new | `.devcontainer/launchers/claude`, `.../codex` → `/usr/local/lib/aidc/launchers/`, first on `PATH` | resolving each CLI from the tools config copy; Codex without the managed daemon | installing anything; CLI state |
@@ -198,23 +198,17 @@ newer Codex is the accepted risk the spec states.
 | file | key | purpose | evidence |
 |---|---|---|---|
 | Claude managed settings | `env.DISABLE_UPDATES = "1"` | blocks `claude update` and auto-update | *verified*, spike 2026-09-26 |
-| Claude managed settings | `env.FORCE_AUTOUPDATE_PLUGINS = "1"` | keeps plugin auto-update on | see below |
 | Claude managed settings | `env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS = "1"` | clones `owner/repo` marketplaces over HTTPS without the SSH probe | Claude Code docs (host-marketplace); name present in the 2.1.283 package |
 | Codex `requirements.toml` | `check_for_update_on_startup = false` | no update check | *verified*, spike 2026-09-27 |
 | Codex `requirements.toml` | `cli_auth_credentials_store = "file"` | `auth.json` in `CODEX_HOME` | *verified*, spike 2026-09-27 |
-| Codex `requirements.toml` | `allowed_sandbox_modes = ["danger-full-access"]` | pins the isolation choice | source inspection; runtime *to verify* |
-| Codex `/etc/codex/config.toml` | `sandbox_mode = "danger-full-access"`, `approval_policy = "on-request"` | container as the boundary | source inspection; runtime *to verify* |
+| Codex `/etc/codex/config.toml` | `sandbox_mode = "danger-full-access"`, `approval_policy = "on-request"` | container as the boundary, as defaults below user configuration | *verified*, Task 6 probe P6.3 2026-09-28 |
 
 The shared Compose file sets `DISABLE_UPDATES` in the environment too; the
-other two Claude keys live in managed settings only.
-Source inspection, 2026-09-28, is not runtime verification:
-- Claude Code 2.1.283, `strings bin/claude.exe`: `Yte(){return
-  Kte()&&!a.FORCE_AUTOUPDATE_PLUGINS}`, where `Kte()` is true under
-  `DISABLE_UPDATES` or `DISABLE_AUTOUPDATER`, and the plugin pass logs
-  "Plugin autoupdate: skipped (auto-updater disabled)" when `Yte()` holds;
-  `claude update` still refuses under `DISABLE_UPDATES`.
-- Codex 0.157.1, `strings codex | grep -o -E 'allowed_sandbox_modes|/etc/codex/[a-z_.]+'`:
-  both names are present.
+HTTPS key lives in managed settings only. Plugin updates are left to each
+CLI's default behaviour (developer ruling 2026-09-28): source inspection of
+Claude Code 2.1.283 suggests `DISABLE_UPDATES` also skips its plugin
+auto-update, which is accepted. No allowed-sandbox-modes list is set: Codex
+0.157.1 rejects one without `read-only` (probe P6.3).
 
 Codex's sandbox does not start under Docker's default seccomp and AppArmor
 profiles (*verified*, v1 plan 3 evidence 2026-09-28), hence the container as
@@ -376,16 +370,10 @@ socket only with the opt-in).
    parallel sessions, login and settings stay intact.
 8. A login survives a rebuild and `profile:remove` followed by `profile:code`.
 9. With the container on no network, VS Code still attaches (AC10).
-10. Claude plugin auto-update, after enabling it for a marketplace in `/plugin`.
 
 ## 8. Open questions
 
 - Whether VS Code "Rebuild Container" is enough, or `profile:rebuild` is needed.
-- Whether `FORCE_AUTOUPDATE_PLUGINS` keeps Claude's plugin auto-update working
-  under `DISABLE_UPDATES` at runtime, and whether Codex updates plugins on its
-  own (its binary names `plugins-marketplace-auto-upgrade`).
-- Whether Codex enforces `allowed_sandbox_modes` and reads
-  `/etc/codex/config.toml` below user configuration.
 - How `mise lock --global` resolves a changed declaration, and whether
   `mise install --locked` runs offline.
 - Whether mise reads tasks from `MISE_GLOBAL_CONFIG_FILE`, whether `-C /`
@@ -411,3 +399,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — the lock-failure fallback was verified on mise 2026.9.15 only (plan-adversary round 2, I1); license: the probe; §3.3 names the version the image pins.
 - fixed 2026-09-28 — offline, `mise ls` omits unresolvable `latest` tools, so `aidc:status` could not show the agent CLIs (plan-adversary round 3, I1); ruling: 2026-09-28 (developer); status lists the declared tools from the copy and marks missing ones.
 - fixed 2026-09-28 — a lock across all platforms failed when a declared version lacked another architecture's asset (implementation Task 4, P4.4); ruling: 2026-09-28 (developer); locks cover the container platform only.
+- fixed 2026-09-28 — Codex 0.157.1 rejects `allowed_sandbox_modes` without `read-only`, and forcing Claude's plugin auto-update contradicts leaving updates to the CLIs (Task 6 probes P6.3/P6.4); ruling: 2026-09-28 (developer); both keys dropped, `gnupg` added for the apt key check.

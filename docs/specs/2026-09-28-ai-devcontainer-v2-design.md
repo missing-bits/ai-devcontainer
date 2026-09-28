@@ -125,19 +125,21 @@ before any file or Docker change.
   writes the marker only after full success. An interrupted run completes at
   the next start. Once the marker exists, the developer's removals and
   disables stand.
-- Plugin updates are each CLI's own behaviour: automatic where the CLI does
-  it, by hand with native commands otherwise. The self-update policy must
-  leave Claude's plugin auto-update working; Claude keeps background
-  auto-update off for third-party marketplaces until the developer enables it
-  per marketplace in `/plugin`, and that choice persists in the state volume. Other plugin versions call for a
+- Plugin updates follow each CLI's default behaviour, for Claude and Codex
+  alike: nothing forces them on or off. If a CLI updates its plugins
+  automatically, that is fine; if it does not, native commands update them by
+  hand. Codex refreshes its marketplaces at session start (*verified*, probe
+  2026-09-28); whether Claude's plugin auto-update runs under the CLI
+  self-update policy is left to Claude. Other plugin versions call for a
   separate state profile; a new default reaches an existing one only by hand.
 
 ## Isolation
 
 The container is the isolation boundary. Codex runs with
 `sandbox_mode = "danger-full-access"` and `approval_policy = "on-request"`
-from the container's Codex configuration, and `requirements.toml` allows only
-that sandbox mode. Claude Code's sandbox stays off, its default. Docker's
+from the container's Codex configuration; a different mode set in the user's
+own configuration is the developer's choice (Codex 0.157.1 rejects an
+allowed-modes list without `read-only`, probe 2026-09-28). Claude Code's sandbox stays off, its default. Docker's
 default seccomp and AppArmor profiles stay in place.
 
 Consequence: agent commands can change every project of the profile and its
@@ -237,7 +239,6 @@ command can control every container on the host.
 ## Open verification items
 
 - Whether VS Code "Rebuild Container" makes `profile:rebuild` unnecessary.
-- Whether Claude's plugin auto-update works under the self-update policy.
 - Concurrent use of one Claude and one Codex state profile from two containers.
 - How `mise lock --global` resolves a changed declaration.
 - Whether Codex enforces the sandbox and approval settings.
@@ -263,3 +264,4 @@ command can control every container on the host.
 - signal 2026-09-28 — another architect round would not earn its cost; a propagation audit after the fixes and the integrity audit at the consumption gate suffice.
 - fixed 2026-09-28 — integrity audit (consumption gate, with the TD): 8 defects and 14 implementer questions disposed in place; license: the audit's two-quote proofs and the v2 brief; spec wording (state profiles, container task mechanism marked to verify, open items, `test:integration`) and TD §3.3–§3.9.
 - fixed 2026-09-28 — both agent CLIs default to latest and the Codex launcher has no version guard, with the table risk accepted; names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer, plan-adversary round 1 M7/M8).
+- fixed 2026-09-28 — plugin updates follow each CLI's default behaviour with nothing forced, and Codex's allowed sandbox modes are not restricted (implementation Task 6, P6.3/P6.4); ruling: 2026-09-28 (developer).
