@@ -11,10 +11,17 @@ This project is a generic development container for Claude Code and Codex CLI,
 with independent environment profiles and separate mise configurations for
 container tools and project dependencies.
 
-The project is in design. Container configuration, scripts, mise tasks, and
-automated checks have not been implemented yet. Treat commands mentioned in
-design discussions as proposed interfaces until their implementations exist.
-Update this section when implementation changes that status.
+v2 is implemented per `docs/plans/2026-09-28-ai-devcontainer-v2-plan.md`:
+host tasks (`profile:new`, `profile:code`, `profile:remove`), the shared
+Compose file and workspace image, container tasks (`aidc:sync`,
+`aidc:update`, `aidc:status`), the entrypoint, plugin initialization, the
+agent CLI launchers, and the unit and Docker integration test suites all
+exist. `README.md` documents host setup and day-to-day use.
+`docs/verification/acceptance-matrix.md` and
+`docs/verification/manual-checklist.md` record what each acceptance
+criterion and probe verified, and what still needs a manual pass with VS
+Code or a real agent login. Update this section when implementation changes
+that status.
 
 Before design or implementation work, read `docs/domain/glossary.md` for
 canonical terms and the design specifications in `docs/specs/` for agreed
@@ -55,7 +62,16 @@ implementation plans are versioned; do not ignore `docs/domain/`,
 ## Validation
 
 - Run checks appropriate to the files changed and report their actual results.
-- No build, lint, or test task exists yet. Do not invent successful checks or
-  claim that a container or plugin integration was tested without running it.
-- Once implemented, expose routine checks through mise and document them here.
+- Run `mise run check` (formatting, lint, unit tests) for every change, and
+  `mise run test:integration` when Docker is available; report both results.
+  `mise run test:integration` needs network access too: it builds the
+  workspace image and installs container tools, agent CLIs and plugin
+  marketplaces from GitHub. Export `GITHUB_TOKEN` on the host; the tests
+  pass it to containers only as an environment variable, never in logs,
+  build arguments or persisted configuration.
+- Run `docs/verification/manual-checklist.md` for the items that need VS
+  Code or a real agent login; no mise task runs it.
+- Do not invent successful checks, or claim that a container, plugin
+  integration or manual checklist item was tested without running it.
+- Expose new routine checks as mise tasks and list them here.
 - Keep changes focused and preserve existing user work.
