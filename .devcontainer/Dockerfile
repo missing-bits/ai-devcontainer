@@ -1,0 +1,112 @@
+# Workspace image for every environment profile (TD §2). Built through the
+# shared Compose file with the host UID and GID from the profile's fragment.
+FROM debian:trixie-slim
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+# Build-time only, so interactive tools in the container keep their default.
+ARG DEBIAN_FRONTEND=noninteractive
+
+# Base packages and the en_US.UTF-8 locale.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    zsh git curl gnupg ca-certificates openssh-client jq util-linux procps locales \
+  && sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen \
+  && locale-gen \
+  && rm -rf /var/lib/apt/lists/*
+ENV LANG=en_US.UTF-8 \
+    LC_ALL=en_US.UTF-8
+
+# Docker CLI and Compose plugin from Docker's Debian repository; no daemon.
+# The repository key is trusted only when it is exactly the one primary key
+# with Docker's published fingerprint.
+ARG DOCKER_APT_KEY_FINGERPRINT=9DC858229FC7DD38854AE2D88D81803C0EBFCD88
+RUN install -m 0755 -d /etc/apt/keyrings \
+  && curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc \
+  && GNUPGHOME="$(mktemp -d)" \
+  && export GNUPGHOME \
+  && fpr="$(gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc \
+    | awk -F: '$1 == "pub" { primary = 1; next } $1 == "fpr" && primary { print $10 } { primary = 0 }')" \
+  && rm -rf "${GNUPGHOME}" \
+  && unset GNUPGHOME \
+  && if [ "${fpr}" != "${DOCKER_APT_KEY_FINGERPRINT}" ]; then \
+    echo "unexpected Docker apt key fingerprint '${fpr}'" >&2; exit 1; \
+  fi \
+  && chmod a+r /etc/apt/keyrings/docker.asc \
+  && codename="$(sed -n 's/^VERSION_CODENAME=//p' /etc/os-release)" \
+  && printf 'deb [arch=%s signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian %s stable\n' \
+    "$(dpkg --print-architecture)" "$codename" > /etc/apt/sources.list.d/docker.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin \
+  && rm -rf /var/lib/apt/lists/*
+
+# mise, pinned by version and by the release asset's SHA-256 (values from the
+# release's SHASUMS256.txt).
+ARG TARGETARCH
+ARG MISE_VERSION=2026.9.15
+ARG MISE_SHA256_X64=2148d2485d1e6e48eb918729d86af4ecd438f9b5b63be360fb26005c85f0d853
+ARG MISE_SHA256_ARM64=254f60912e73c9420f03be8bab90ac80c0056db6826814b1a91cb4a0f872c1db
+RUN case "${TARGETARCH}" in \
+    amd64) arch=x64 sum="${MISE_SHA256_X64}" ;; \
+    arm64) arch=arm64 sum="${MISE_SHA256_ARM64}" ;; \
+    *) echo "unsupported architecture '${TARGETARCH}'" >&2; exit 1 ;; \
+  esac \
+  && tmp="$(mktemp -d)" \
+  && curl -fsSL -o "${tmp}/mise.tar.gz" \
+    "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-${arch}.tar.gz" \
+  && echo "${sum}  ${tmp}/mise.tar.gz" | sha256sum -c - \
+  && tar -xzf "${tmp}/mise.tar.gz" -C "${tmp}" \
+  && install -m 0755 "${tmp}/mise/bin/mise" /usr/local/bin/mise \
+  && rm -rf "${tmp}"
+
+# Container scripts, agent CLI launchers, policy files and shell integration,
+# owned by root (TD §3.6, §3.7, §3.9).
+COPY bin/ /usr/local/lib/aidc/bin/
+COPY lib/ /usr/local/lib/aidc/lib/
+COPY launchers/ /usr/local/lib/aidc/launchers/
+COPY policy/claude-managed-settings.json /etc/claude-code/managed-settings.json
+COPY policy/codex-requirements.toml /etc/codex/requirements.toml
+COPY policy/codex-config.toml /etc/codex/config.toml
+COPY shell/zshrc /etc/zsh/zshrc
+COPY shell/aidc-path.sh /etc/profile.d/aidc-path.sh
+# COPY keeps the build context's modes, which a umask-077 checkout makes
+# owner-only; everyone gets read (and execute where the owner has it), only
+# root keeps write.
+RUN chmod -R a+rX,go-w /usr/local/lib/aidc /etc/claude-code /etc/codex \
+  && chmod 0644 /etc/claude-code/managed-settings.json /etc/codex/requirements.toml \
+    /etc/codex/config.toml /etc/zsh/zshrc /etc/profile.d/aidc-path.sh
+
+# The launcher directory leads PATH, so nothing installed under
+# /opt/aidc/tools can shadow an agent CLI launcher (TD §3.6). Debian's
+# /etc/profile resets PATH for login shells; /etc/profile.d/aidc-path.sh and
+# the zshrc hooks restore the order.
+ENV PATH=/usr/local/lib/aidc/launchers:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
+# The dev user carries the host UID and GID (AC2). Declared after the layers
+# above, so a different UID or GID reuses them. Every mount point is owned by
+# dev, parents included, so an empty volume takes dev's ownership (TD §3.2).
+ARG USER_UID
+ARG USER_GID
+RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
+    echo "USER_UID and USER_GID are required build arguments" >&2; exit 1; \
+  fi \
+  && case "${USER_UID}${USER_GID}" in \
+    *[!0-9]*) echo "USER_UID and USER_GID must be numeric" >&2; exit 1 ;; \
+  esac \
+  && if [ "${USER_UID}" -eq 0 ]; then echo "the host user must not be root" >&2; exit 1; fi \
+  && if [ "${USER_GID}" -eq 0 ]; then echo "the host group must not be root" >&2; exit 1; fi \
+  && if user="$(getent passwd "${USER_UID}" | cut -d: -f1)" && [ -n "${user}" ]; then \
+    echo "UID ${USER_UID} is already used by ${user} in the base image" >&2; exit 1; \
+  fi \
+  && if ! group="$(getent group "${USER_GID}" | cut -d: -f1)" || [ -z "${group}" ]; then \
+    group=dev && groupadd -g "${USER_GID}" "${group}"; \
+  fi \
+  && useradd -l -u "${USER_UID}" -g "${group}" -m -d /home/dev -s /usr/bin/zsh dev \
+  && install -d -o root -g root -m 0755 /opt/aidc \
+  && for dir in /home/dev/.claude /home/dev/.codex /home/dev/.local /home/dev/.local/state \
+    /home/dev/.local/state/shell /opt/aidc/tools /workspaces; do \
+    install -d -o dev -g "${group}" -m 0755 "${dir}"; \
+  done
+
+USER dev
+WORKDIR /home/dev

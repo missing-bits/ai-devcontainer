@@ -1,0 +1,22 @@
+# Shared Compose file for every environment profile (TD §2). Profile-specific
+# values (project name, build arguments, volumes, mounts, environment) live in
+# the generated fragment .local/<profile>/compose.yaml. Compose resolves the
+# build context and the bind source below against this file's directory.
+services:
+  workspace:
+    build:
+      context: .
+    image: aidc-workspace:local
+    init: true
+    user: dev
+    entrypoint: ["/usr/local/lib/aidc/bin/aidc-entrypoint"]
+    command: ["sleep", "infinity"]
+    environment:
+      DISABLE_UPDATES: "1"
+      MISE_DATA_DIR: /opt/aidc/tools/mise
+      MISE_GLOBAL_CONFIG_FILE: /opt/aidc/tools/mise.toml
+      CLAUDE_CONFIG_DIR: /home/dev/.claude
+      CODEX_HOME: /home/dev/.codex
+      HISTFILE: /home/dev/.local/state/shell/zsh_history
+    volumes:
+      - .:/opt/aidc/devcontainer:ro

@@ -1,0 +1,6 @@
+# System defaults for Codex CLI in every aidc container (TD §3.7). User
+# configuration overrides them. The container is the isolation boundary,
+# because Codex's sandbox does not start under Docker's default seccomp and
+# AppArmor profiles.
+sandbox_mode = "danger-full-access"
+approval_policy = "on-request"
