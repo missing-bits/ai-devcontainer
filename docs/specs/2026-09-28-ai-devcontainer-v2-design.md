@@ -1,7 +1,7 @@
 ---
 ticket: none
 date: 2026-09-28
-status: draft
+status: approved
 branch: feature/ai-devcontainer-v2
 technical-design: ../technical-designs/ai-devcontainer-v2-technical-design.md
 architect: LGTM
