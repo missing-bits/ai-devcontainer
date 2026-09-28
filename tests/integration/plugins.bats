@@ -19,15 +19,6 @@ teardown_file() {
   aidc_it_cleanup
 }
 
-# track_state <profile>: tracks the three state volumes profile:remove never
-# touches; the tools volume and container are removed by profile:remove.
-track_state() {
-  aidc_it_track_profile "$1"
-  aidc_it_track_volume "aidc-claude-$1"
-  aidc_it_track_volume "aidc-codex-$1"
-  aidc_it_track_volume "aidc-shell-$1"
-}
-
 claude_plugin_count() {
   docker exec "$(aidc_it_container "$1")" claude plugin list --json 2>/dev/null | jq 'length' 2>/dev/null || printf 0
 }
@@ -38,7 +29,7 @@ claude_plugin_count() {
   aidc_it_new_profile "$p1"
   aidc_it_code "$p1"
   aidc_it_up "$p1" "$COMPOSE_TEST"
-  track_state "$p1"
+  aidc_it_track_state "$p1"
 
   local status
   status="$(aidc_it_wait_init "$p1")"
@@ -55,6 +46,7 @@ claude_plugin_count() {
   run aidc_it_exec "$p1" claude plugin list --json
   assert_success
   run jq -r '.[].id' <<<"$output"
+  assert_success
   assert_output_contains "superpowers@claude-plugins-official"
   assert_output_contains "elements-of-style@superpowers-marketplace"
   assert_output_contains "working-process@missing-bits"
@@ -63,6 +55,7 @@ claude_plugin_count() {
   run aidc_it_exec "$p1" codex plugin list --json
   assert_success
   run jq -r '.installed[].pluginId' <<<"$output"
+  assert_success
   assert_output_contains "superpowers@claude-plugins-official"
   assert_output_contains "elements-of-style@superpowers-marketplace"
 }
@@ -73,7 +66,7 @@ claude_plugin_count() {
   aidc_it_new_profile "$p2"
   aidc_it_code "$p2"
   aidc_it_up "$p2" "$COMPOSE_TEST"
-  track_state "$p2"
+  aidc_it_track_state "$p2"
   container="$(aidc_it_container "$p2")"
 
   # Poll for the first (but not every) default plugin, then kill the
@@ -108,6 +101,7 @@ claude_plugin_count() {
   run aidc_it_exec "$p2" claude plugin list --json
   assert_success
   run jq 'length' <<<"$output"
+  assert_success
   [ "$output" -eq 4 ]
 }
 
@@ -117,7 +111,7 @@ claude_plugin_count() {
   aidc_it_new_profile "$p3"
   aidc_it_code "$p3"
   aidc_it_up "$p3" "$COMPOSE_NONET"
-  track_state "$p3"
+  aidc_it_track_state "$p3"
   container="$(aidc_it_container "$p3")"
 
   status="$(aidc_it_wait_init "$p3")"

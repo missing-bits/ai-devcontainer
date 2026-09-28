@@ -29,19 +29,13 @@ setup_file() {
     "GIT_COMMITTER_NAME=$GIT_COMMITTER_NAME_VALUE" "GIT_COMMITTER_EMAIL=$GIT_COMMITTER_EMAIL_VALUE"
   aidc_it_code "$PV"
   aidc_it_up "$PV" "$COMPOSE_TEST"
-  aidc_it_track_profile "$PV"
-  aidc_it_track_volume "aidc-claude-$PV"
-  aidc_it_track_volume "aidc-codex-$PV"
-  aidc_it_track_volume "aidc-shell-$PV"
+  aidc_it_track_state "$PV"
 
   aidc_it_new_profile "$PVON"
   aidc_it_set_env "$PVON" "DOCKER_SOCKET=on"
   aidc_it_code "$PVON"
   aidc_it_up "$PVON" "$COMPOSE_TEST"
-  aidc_it_track_profile "$PVON"
-  aidc_it_track_volume "aidc-claude-$PVON"
-  aidc_it_track_volume "aidc-codex-$PVON"
-  aidc_it_track_volume "aidc-shell-$PVON"
+  aidc_it_track_state "$PVON"
 }
 
 teardown_file() {
@@ -51,6 +45,8 @@ teardown_file() {
 @test "the build context holds none of the private directories" {
   run bash -c "tar -cf - -C '$AIDC_ROOT/.devcontainer' . | tar -tf -"
   assert_success
+  # Guards against a vacuous pass on an empty or wrongly-scoped listing.
+  assert_output_contains "Dockerfile"
   refute_output_contains "profiles/"
   refute_output_contains "projects/"
   refute_output_contains ".local/"

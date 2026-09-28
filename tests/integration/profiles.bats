@@ -28,17 +28,11 @@ setup_file() {
   aidc_it_code "$B"
   aidc_it_up "$A" "$COMPOSE_TEST"
   aidc_it_up "$B" "$COMPOSE_TEST"
-  aidc_it_track_profile "$A"
-  aidc_it_track_profile "$B"
   # State volumes are named after the profile itself (unset PROFILE_* fields,
-  # AC7); profile:remove never touches them, so they are tracked and removed
-  # here explicitly.
-  aidc_it_track_volume "aidc-claude-$A"
-  aidc_it_track_volume "aidc-codex-$A"
-  aidc_it_track_volume "aidc-shell-$A"
-  aidc_it_track_volume "aidc-claude-$B"
-  aidc_it_track_volume "aidc-codex-$B"
-  aidc_it_track_volume "aidc-shell-$B"
+  # AC7); profile:remove never touches them, so aidc_it_track_state tracks
+  # the profile and its three state volumes together.
+  aidc_it_track_state "$A"
+  aidc_it_track_state "$B"
 }
 
 teardown_file() {

@@ -217,6 +217,20 @@ aidc_it_track_profile() { aidc_it_track "$(aidc_it_file_ledger)" profile "$1"; }
 aidc_it_track_volume() { aidc_it_track "$(aidc_it_file_ledger)" volume "$1"; }
 aidc_it_track_container() { aidc_it_track "$(aidc_it_file_ledger)" container "$1"; }
 
+# aidc_it_track_state <profile>: tracks the profile itself plus its three
+# state volumes (Claude, Codex, shell), for the common case of a profile
+# whose PROFILE_CLAUDE/CODEX/SHELL fields are unset, so each state volume
+# defaults to the profile's own name (TD §3.1). profile:remove never touches
+# state volumes, so they are tracked here explicitly. Not for a profile that
+# shares a state name with another profile -- track that volume once,
+# separately, after every profile referencing it is tracked.
+aidc_it_track_state() {
+  aidc_it_track_profile "$1"
+  aidc_it_track_volume "aidc-claude-$1"
+  aidc_it_track_volume "aidc-codex-$1"
+  aidc_it_track_volume "aidc-shell-$1"
+}
+
 aidc_it_cleanup() { # [<ledger>], default the file-scoped one
   local ledger="${1:-$(aidc_it_file_ledger)}" kind name
   [ -f "$ledger" ] || return 0

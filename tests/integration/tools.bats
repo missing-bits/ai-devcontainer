@@ -24,10 +24,7 @@ setup_file() {
   aidc_it_new_profile "$C"
   aidc_it_code "$C"
   aidc_it_up "$C" "$COMPOSE_TEST"
-  aidc_it_track_profile "$C"
-  aidc_it_track_volume "aidc-claude-$C"
-  aidc_it_track_volume "aidc-codex-$C"
-  aidc_it_track_volume "aidc-shell-$C"
+  aidc_it_track_state "$C"
 
   C_STATUS="$(aidc_it_wait_init "$C")"
   export C_STATUS
@@ -121,6 +118,22 @@ mise_version() {
   assert_success
   [ -n "$output" ]
   run mise_version 'aqua:anthropics/claude-code'
+  assert_success
+  [ -n "$output" ]
+
+  # aidc:update against the same uninstallable-tool state: names the failure,
+  # exits non-zero, and the other tools stay installed too.
+  run docker exec "$(aidc_it_container "$C")" env MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:update
+  assert_failure
+  assert_output_contains "aidc-test-org-does-not-exist/aidc-test-tool-does-not-exist"
+
+  run mise_version 'aqua:sharkdp/fd'
+  assert_success
+  [ -n "$output" ]
+  run mise_version 'aqua:anthropics/claude-code'
+  assert_success
+  [ -n "$output" ]
+  run mise_version 'aqua:openai/codex'
   assert_success
   [ -n "$output" ]
 

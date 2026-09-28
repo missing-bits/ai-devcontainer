@@ -18,10 +18,7 @@ setup_file() {
   aidc_it_new_profile "$P"
   aidc_it_code "$P"
   aidc_it_up "$P" "$COMPOSE_TEST"
-  aidc_it_track_profile "$P"
-  aidc_it_track_volume "aidc-claude-$P"
-  aidc_it_track_volume "aidc-codex-$P"
-  aidc_it_track_volume "aidc-shell-$P"
+  aidc_it_track_state "$P"
 
   status="$(aidc_it_wait_init "$P")"
   [[ "$status" == ok* ]] || {
@@ -60,6 +57,19 @@ teardown_file() {
 
 @test "after codex runs, no app-server daemon process exists and CODEX_HOME/packages is absent" {
   aidc_it_exec "$P" sh -c 'codex exec --skip-git-repo-check "hi" </dev/null >/tmp/codex-exec.log 2>&1' || true
+
+  # Guard against a vacuous pass: without a login, codex exec fails on the
+  # auth check, but the P6.3 probe found it prints its sandbox/approval
+  # header first (config load, sandbox setup), so a "sandbox:" line in the
+  # log is evidence the run reached past plain CLI startup rather than
+  # failing on, say, an argument-parse error before anything meaningful ran.
+  # If a login-free path can reach app-server without ever printing that
+  # header, this check would not catch it; that gap belongs to the manual
+  # checklist (TD §7 item 4), which runs with a real login.
+  run aidc_it_exec "$P" cat /tmp/codex-exec.log
+  assert_success
+  assert_output_contains "sandbox:"
+
   run aidc_it_exec "$P" pgrep -f app-server
   assert_failure
   run aidc_it_exec "$P" test -d /home/dev/.codex/packages
