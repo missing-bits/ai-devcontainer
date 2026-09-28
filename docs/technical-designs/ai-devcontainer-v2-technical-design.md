@@ -248,7 +248,10 @@ running container; *verified*, `findComposeContainer`), then `code
   `aidc:sync` or the next start.
 - **`aidc:status`** reads files only, so it works offline:
   - `init.status` and the tail of `init.log`;
-  - `mise ls` against the tools config copy;
+  - the declared tools, read with `mise config get --file
+    /opt/aidc/tools/mise.toml tools`, each shown with its installed version from
+    `mise ls` or as `missing` (offline, `mise ls` omits an unresolvable `latest`
+    tool, *verified* plan-adversary probe 2026-09-28);
   - for each agent, whether its plugin marker exists.
   It calls no agent CLI.
 - **`profile:code` order.** It validates the name, parses and validates
@@ -400,3 +403,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — `profile:code` took the host lock before validating `profile.env`, which creates a file and breaks AC1; license: spec AC1 (change no file); §3.9 now validates first (Codex co-author review of the plan).
 - fixed 2026-09-28 — a failed `mise lock --global` left nothing installable, the Codex version guard compared the pin with itself, and the names `locks`/`active-profile` collided with `.local/` entries (plan-adversary round 1, I2, M8, M7); ruling: 2026-09-28 (developer): plain `mise install` after a failed lock; no Codex guard, both CLIs default to latest with the table risk accepted; the two names rejected.
 - fixed 2026-09-28 — the lock-failure fallback was verified on mise 2026.9.15 only (plan-adversary round 2, I1); license: the probe; §3.3 names the version the image pins.
+- fixed 2026-09-28 — offline, `mise ls` omits unresolvable `latest` tools, so `aidc:status` could not show the agent CLIs (plan-adversary round 3, I1); ruling: 2026-09-28 (developer); status lists the declared tools from the copy and marks missing ones.

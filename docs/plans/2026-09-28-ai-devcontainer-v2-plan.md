@@ -90,7 +90,8 @@ files row, §3.9 Host tools.
     `latest`, no bare major).
 - [ ] **Step 2: Run** `bats tests/unit/host/repository.bats`. Expected: FAIL (no
       `.gitignore`, no `mise.toml`).
-- [ ] **Step 3: Implement.** Root `mise.toml` pins `node` (required by the npm backend of
+- [ ] **Step 3: Implement.** Root `mise.toml` sets `min_version = "2026.9.15"` (a floor:
+      mise cannot pin itself exactly; Task 4's probes run on exactly 2026.9.15) and pins `node` (required by the npm backend of
       the Dev Containers CLI), `npm:@devcontainers/cli`, `jq`, `bats`, `shellcheck`,
       `shfmt`; `[task_config] includes = ["tasks/host"]`; tasks `fmt`, `fmt:check`, `lint`,
       `test` (`bats --recursive tests/unit`), `test:integration` (fails with a clear message when
@@ -272,8 +273,10 @@ logic is out of scope).
   - `every mise call runs from / with only the two MISE_* variables`.
   - `the tools lock is taken` — a held `flock` on `.lock` makes `sync` wait (checked with
     `timeout 1`, expecting status 124).
-  - `status reads files only` — prints `init.status`, the log tail, `mise ls` output and,
-    per agent, marker present/absent; the stub `claude` and `codex` are never called.
+  - `status reads files only` — prints `init.status`, the log tail, every declared tool of
+    the copy (`mise config get --file … tools`) with its `mise ls` version or `missing`,
+    and, per agent, marker present/absent; the stub `claude` and `codex` are never
+    called; a declared tool absent from `mise ls` is shown as `missing` (TD §3.9).
   - `entrypoint writes running, then ok` and `writes failed: tools` when the tools step
     fails, `failed: plugins-claude` when plugin init fails, and `exec`s its arguments in
     every case.
@@ -352,8 +355,7 @@ Isolation. TD §2 image, Compose and policy rows, §3.2 mount points, §3.7, §3
 **Reuse:** v1 `.devcontainer/Dockerfile` for the Docker apt key check, the mise download
 with SHA-256 and the `chmod` of copied files. Pin mise **2026.9.15** (not v1's 2026.9.12,
 on which a failed `mise lock --global` exits 0 with a partial lock), with the SHA-256
-values from that release's checksums; the root `mise.toml` pins the same version for the
-host probes. Drop the base digest argument (TD:
+values from that release's checksums (the root `mise.toml` floor comes from Task 1). Drop the base digest argument (TD:
 `FROM debian:trixie-slim`), yq, and `/run/aidc`. Build arguments are `USER_UID`/`USER_GID`
 (TD §3.8). Create, owned by `dev` and in v1's loop shape so parents are owned too:
 `/home/dev/.claude`, `/home/dev/.codex`, `/home/dev/.local`, `/home/dev/.local/state`,
@@ -428,8 +430,11 @@ names exists; each test records the containers and volumes it creates, and clean
 removes exactly those, never by pattern.
 
 **Interfaces:** drives the host tasks of Task 2 through a copied repository (`AIDC_ROOT`);
-`code` is stubbed, `devcontainer` and `docker` are real. The shared image
-`aidc-workspace:local` is outside cleanup; the v1 `00_suite.bats`/`zz_cleanup.bats` serve
+`code` is stubbed and `docker` is real; `devcontainer` is stubbed wherever a test uses the
+test Compose files, so the real `devcontainer up` path is exercised only by the Task 6
+smoke and P6.1 (an acceptance-matrix row says so). Suite setup builds
+`aidc-workspace:local` once per run from the repository copy (`docker compose … build`),
+so image-baked script fixes reach the tests. The image is outside cleanup; the v1 `00_suite.bats`/`zz_cleanup.bats` serve
 only as ordering scaffolding. A test-only Compose file
 `tests/fixtures/compose.test.yaml` adds `GITHUB_TOKEN` as a pass-through environment
 entry (tests only, never the shared file); a second one,
@@ -475,9 +480,10 @@ Every test that reads `init.status` polls until it no longer starts with `runnin
   - `plugins.bats`: `a new state profile gets every default and the marker` (AC8); `stop the
     container after the first plugin install, start again: every default and the marker`
     (AC9); `first start on no network: the container runs, and aidc:status run from an
-    untrusted project shows the tools, plugins and the failed initialization`, then
-    `restarted with the network: the tools are installed and init.status is ok` (AC10, TD
-    §3.3 and §6).
+    untrusted project shows every declared tool by name (claude and codex as missing),
+    the plugins and the failed initialization`, then `recreated with the network
+    (`up -d` with compose.test.yaml and without compose.nonet.yaml): the tools are
+    installed and init.status is ok` (AC10, TD §3.3 and §6).
   - `privacy.bats`: build context listing (`docker build` of `.devcontainer/` with a debug
     stage, or `tar` of the context) holds no `profiles`, `projects`, `.local`; no file in
     the image (`docker run --rm --user 0` of the image) or in the running container
@@ -559,3 +565,10 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [Minor] M1: key scan as root with empty-output assertion; M2: conditional Files for the P2.1 fallback; M3: the smoke test runs in an `AIDC_ROOT` copy; license: the round's evidence.
 - signal 2026-09-28 — one confirming full-document round after these fixes.
 - gate 2026-09-28 — propagation: Task 6 probes named "the pinned mise" without the version; now mise 2026.9.15.
+
+### 2026-09-28 — plan-adversary, opus 5.5, blocking (round 3, full-document)
+
+- fixed 2026-09-28 — [Important] I1: offline `mise ls` omits unresolvable `latest` tools; ruling: 2026-09-28 (developer); `aidc:status` lists declared tools from the copy and marks missing ones; AC10 asserts each by name; TD §3.9.
+- fixed 2026-09-28 — [Important] I2: nothing built the image in the suite; license: TD §3.9 (scripts are image-baked); suite setup builds `aidc-workspace:local` once per run.
+- fixed 2026-09-28 — [Minor] M1: Interfaces reworded, real `devcontainer up` only in the smoke and P6.1; M2: `min_version` floor in Task 1; M3: the online recreation spelled out; license: the round's evidence.
+- signal 2026-09-28 — cap spent; another full round would not earn its cost; a short diff check closes the loop (developer: Codex closure check).
