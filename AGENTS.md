@@ -19,8 +19,9 @@ Update this section when implementation changes that status.
 Before design or implementation work, read `docs/domain/glossary.md` for
 canonical terms and the design specifications in `docs/specs/` for agreed
 requirements. Read relevant plans and `docs/domain/adr/` decisions when those
-files exist. Domain documents and design specifications are versioned; do not
-ignore `docs/domain/` or `docs/specs/`.
+files exist. Domain documents, design specifications, technical designs, and
+implementation plans are versioned; do not ignore `docs/domain/`,
+`docs/specs/`, `docs/technical-designs/`, or `docs/plans/`.
 
 ## Working process
 
@@ -29,9 +30,12 @@ ignore `docs/domain/` or `docs/specs/`.
 - Complete the design specification and architecture review before preparing
   the implementation plan. Agent initialization does not authorize container
   implementation or mark the design as approved.
-- Distinguish requirements from verified behavior. In particular, concurrent
-  access to shared agent state and full working-process support in Codex remain
-  unverified. Do not silently replace these requirements with limitations.
+- Distinguish requirements from verified behavior. Concurrent access to shared
+  agent state is a requirement that remains unverified; do not silently replace
+  it with a limitation. `working-process` in Codex is out of scope for v2 by
+  the developer's decision (v2 brief, 2026-09-28).
+- Keep the design close to KISS and YAGNI: prefer native tool behavior and
+  plain failure reporting over custom mechanisms.
 - Keep shared project instructions here. `CLAUDE.md` imports this file;
   avoid maintaining duplicate copies of the same instructions.
 

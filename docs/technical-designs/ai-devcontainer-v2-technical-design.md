@@ -4,6 +4,7 @@ date: 2026-09-28
 status: draft
 spec: ../specs/2026-09-28-ai-devcontainer-v2-design.md
 branch: feature/ai-devcontainer-v2
+architect: LGTM
 ---
 
 # AI Devcontainer v2 Technical Design
@@ -30,7 +31,7 @@ All parts are `new`.
 | part | kind | change | placement | owns | deliberately excludes |
 |---|---|---|---|---|---|
 | Host tasks | mise file tasks (bash) | new | root `mise.toml`, `tasks/host/`, small library `tasks/host/lib/` | name validation, `profile.env` parsing, profile creation, generation of `.local/<p>/`, volume creation, `devcontainer up`, opening VS Code, removal, the host profile lock, the active profile, repository checks | any change inside a running container; reading agent state |
-| Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `dev`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/desired` | anything profile-specific |
+| Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `dev`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/devcontainer` | anything profile-specific |
 | Generated profile files | local files | new | `.local/<p>/compose.yaml` (the profile's Compose fragment) and `.local/<p>/.devcontainer/devcontainer.json` | the profile's project name, build arguments, volume names, mounts, environment and socket opt-in | anything versioned; secrets |
 | Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `dev` built with the host UID and GID, volume mount points owned by `dev`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
 | Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude plugin auto-update on, Codex file credentials, Codex sandbox and approval mode | user preferences; files in agent state |
@@ -40,7 +41,7 @@ All parts are `new`.
 | Plugin catalog and script | versioned data + bash script | new | `.devcontainer/plugins.json`; `.devcontainer/bin/aidc-plugins` | the default marketplaces and plugins per agent; plugin initialization and its marker, under the state lock | plugin updates, removal, rollback |
 | Profile tools volume | named volume | new | `aidc-tools-<p>` at `/opt/aidc/tools` | installations, the tools config copy with `mise.lock`, the tools lock, the init log and result marker | agent state |
 | Profile example | versioned files | new | `examples/profile/profile.env` | fictional sample values, state fields empty, socket off | real names or values |
-| Ignore files | versioned files | new | `.gitignore`, `.dockerignore` | excluding `profiles/`, `projects/` and `.local/` from Git and from any build context; the image context is `.devcontainer/` alone | a guarantee against a force-add or a custom context |
+| Ignore files | versioned file | new | `.gitignore` | excluding `profiles/`, `projects/` and `.local/` from Git; the image context is `.devcontainer/` alone, so none of them reaches a build | a guarantee against a force-add or a custom context |
 
 ## 3. Contracts
 
@@ -70,7 +71,7 @@ because Compose interpolates the fragment.
 | `aidc-codex-<PROFILE_CODEX>` | `/home/dev/.codex` | `CODEX_HOME=/home/dev/.codex` |
 | `aidc-shell-<PROFILE_SHELL>` | `/home/dev/.local/state/shell` | `HISTFILE=/home/dev/.local/state/shell/zsh_history` |
 | `projects/<p>/` (bind) | `/workspaces/<p>` | — |
-| `.devcontainer/` (bind, read-only) | `/opt/aidc/desired` | — |
+| `.devcontainer/` (bind, read-only) | `/opt/aidc/devcontainer` | — |
 
 Host tasks create the named volumes with `docker volume create`; the fragment
 declares them `external`, so no Compose command removes shared state. The
@@ -85,7 +86,7 @@ spike 2026-09-27, after a keyring login failed).
 All steps run as `dev`, from `/`, with inherited `MISE_*` variables removed
 and the two fixed ones set again (the v1 `mise-isolation.sh` allowlist), under
 the tools lock `/opt/aidc/tools/.lock`. *Copy* always means: write
-`/opt/aidc/desired/mise.toml` to a temporary file in the volume, then rename
+`/opt/aidc/devcontainer/mise.toml` to a temporary file in the volume, then rename
 it over `mise.toml`, so an interrupted copy leaves the old file or none.
 
 - start: copy and run `mise lock --global` only when no copy exists; then
@@ -125,7 +126,7 @@ Catalog shape, with fictional names; `codex` has the same shape:
 
 1. If `<state>/.aidc/plugins-initialized` exists, stop.
 2. Take the state lock `<state>/.aidc/lock`, waiting; check the marker again.
-3. Read the agent's entry from `/opt/aidc/desired/plugins.json`.
+3. Read the agent's entry from `/opt/aidc/devcontainer/plugins.json`.
 4. Run `marketplace list --json`. Add each catalog marketplace whose
    repository is not listed: `claude plugin marketplace add <owner/repo>
    --scope user` or `codex plugin marketplace add <owner/repo>`. Claude lists a
@@ -159,7 +160,7 @@ result, the launcher exits non-zero and names `mise run aidc:sync`.
 The `codex` launcher reuses the tested v1 logic: `--no-daemon` for the
 interactive CLI (no subcommand, `resume`, `fork`) unless `--remote` is given;
 refusal of `agents`, `app-server daemon|proxy` and `remote-control`; only the
-Codex minor version pinned in `.devcontainer/mise.toml` runs (*verified*,
+Codex minor version pinned in the tools config copy `/opt/aidc/tools/mise.toml` runs (*verified*,
 0.157.1 source and spike 2026-09-27: without the flag a TUI start copied the
 binary into `CODEX_HOME/packages/` and left a daemon running).
 
@@ -169,6 +170,7 @@ binary into `CODEX_HOME/packages/` and left a daemon running).
 |---|---|---|---|
 | Claude managed settings | `env.DISABLE_UPDATES = "1"` | blocks `claude update` and auto-update | *verified*, spike 2026-09-26 |
 | Claude managed settings | `env.FORCE_AUTOUPDATE_PLUGINS = "1"` | keeps plugin auto-update on | see below |
+| Claude managed settings | `env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS = "1"` | clones `owner/repo` marketplaces over HTTPS without the SSH probe | Claude Code docs (host-marketplace); name present in the 2.1.283 package |
 | Codex `requirements.toml` | `check_for_update_on_startup = false` | no update check | *verified*, spike 2026-09-27 |
 | Codex `requirements.toml` | `cli_auth_credentials_store = "file"` | `auth.json` in `CODEX_HOME` | *verified*, spike 2026-09-27 |
 | Codex `requirements.toml` | `allowed_sandbox_modes = ["danger-full-access"]` | pins the isolation choice | source inspection; runtime *to verify* |
@@ -216,7 +218,7 @@ running container; *verified*, `findComposeContainer`), then `code
 
 | record | home | written by | read by | lifecycle |
 |---|---|---|---|---|
-| Tool installations | `aidc-tools-<p>`: `mise/` | Container tasks, Entrypoint (through mise) | Agent CLI launchers, Container tasks | until `profile:remove`; `mise upgrade` may prune old versions |
+| Tool installations | `aidc-tools-<p>`: `mise/` | Container tasks, Entrypoint (through mise) | Agent CLI launchers, Container tasks | until `profile:remove`; `mise upgrade` may prune old versions; project runtimes installed from a project's `mise.toml` land here too, unlocked, and go with the volume |
 | Tools config copy | `aidc-tools-<p>`: `mise.toml`, `mise.lock` | Container tasks, Entrypoint | Agent CLI launchers, Container tasks | replaced by `aidc:sync` and `aidc:update`; survives rebuilds |
 | Init log | `aidc-tools-<p>`: `init.log` | Entrypoint | Container tasks (`aidc:status`) | overwritten at every start |
 | Init result marker | `aidc-tools-<p>`: `init.status` | Entrypoint | Container tasks (`aidc:status`) | overwritten at every start |
@@ -240,7 +242,8 @@ Exactly three `flock` locks, each waited for without a bound:
    Plugin initialization takes it and rechecks the marker.
 
 No process holds the tools lock and a state lock at once. Unlocked, accepted:
-interactive CLI sessions; a launcher during `aidc:update` (its running binary
+interactive CLI sessions; a project `mise install` into the shared
+`MISE_DATA_DIR`; a launcher during `aidc:update` (its running binary
 keeps its inode); "Rebuild Container" beside `profile:code`. Cross-container
 `flock` on a named volume is *to verify* by the §7 test.
 
@@ -278,6 +281,10 @@ every default and the marker (AC9); and one cross-container `flock` on a
 shared volume: a second container waits while the first holds it and gets it
 once the holder's container stops.
 
+Also: AC5 with one uninstallable tool declared; AC12 (`git check-ignore`, the
+build context listing, no private key file, `GIT_*` in a test commit, the
+socket only with the opt-in).
+
 **Manual VS Code smoke checklist**:
 
 1. Project mise activation works in the VS Code terminal.
@@ -288,6 +295,9 @@ once the holder's container stops.
 6. VS Code "Rebuild Container" keeps tools, state and history.
 7. Two containers share one Claude and one Codex state profile at once:
    parallel sessions, login and settings stay intact.
+8. A login survives a rebuild and `profile:remove` followed by `profile:code`.
+9. With the container on no network, VS Code still attaches (AC10).
+10. Claude plugin auto-update, after enabling it for a marketplace in `/plugin`.
 
 ## 8. Open questions
 
@@ -308,3 +318,7 @@ once the holder's container stops.
 - How Docker Desktop reports the socket's group inside a container.
 - Whether Docker copies mount-point ownership into an empty external volume on
   every supported topology.
+
+## Review rounds
+
+Reviewed with the design spec in its architect round 1 (2026-09-28, LGTM); the findings and fixes are recorded in the spec's Review rounds section.

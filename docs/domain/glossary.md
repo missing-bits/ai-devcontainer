@@ -25,6 +25,10 @@ _Avoid_: login profile, account
 A named, persistent namespace for shell history, shared by the profiles that
 name it.
 
+**State profile**:
+An agent state profile or a shell history profile, where a statement covers
+both.
+
 **Default state profile**:
 The rule that an agent state profile or shell history profile left unset takes
 the environment profile's name.
