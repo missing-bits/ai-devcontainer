@@ -99,7 +99,8 @@ When `mise lock --global` fails, for example because one declared tool cannot
 be resolved, no `mise.lock` is written and `mise install --locked` would refuse
 every tool. The step then runs plain `mise install`, which installs the tools
 it can resolve (honouring an existing `mise.lock`), names the failure and exits
-non-zero (*verified*, plan-adversary probe 2026-09-28).
+non-zero (*verified* on mise 2026.9.15, the pinned version, plan-adversary probes
+2026-09-28; 2026.9.12 instead writes a partial lock and exits 0).
 
 One directory holds the copy and `mise.lock`: no staging, no manifest. A copy
 that installs partly stays, and the next run installs the rest. *Verified*,
@@ -398,3 +399,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 
 - fixed 2026-09-28 — `profile:code` took the host lock before validating `profile.env`, which creates a file and breaks AC1; license: spec AC1 (change no file); §3.9 now validates first (Codex co-author review of the plan).
 - fixed 2026-09-28 — a failed `mise lock --global` left nothing installable, the Codex version guard compared the pin with itself, and the names `locks`/`active-profile` collided with `.local/` entries (plan-adversary round 1, I2, M8, M7); ruling: 2026-09-28 (developer): plain `mise install` after a failed lock; no Codex guard, both CLIs default to latest with the table risk accepted; the two names rejected.
+- fixed 2026-09-28 — the lock-failure fallback was verified on mise 2026.9.15 only (plan-adversary round 2, I1); license: the probe; §3.3 names the version the image pins.

@@ -242,7 +242,7 @@ logic is out of scope).
 `aidc-plugins init <agent>` from Task 5 (stubbed here). Marker format: `running <UTC time>`,
 `ok <time>`, `failed <time>: <steps>`.
 
-- [ ] **Step 1: Probes** on the host with the pinned mise, in a temp `MISE_DATA_DIR`
+- [ ] **Step 1: Probes** on the host with mise 2026.9.15 (the image pin, Task 6), in a temp `MISE_DATA_DIR`
       (network):
   - *P4.1, TD §8 tasks from `MISE_GLOBAL_CONFIG_FILE`:* a `[tasks]` entry in that file is
     listed by `mise tasks` from `/`. Fallback: document `/usr/local/lib/aidc/bin/aidc-tools
@@ -341,14 +341,19 @@ Compose file; one profile starts through `profile:code`'s `devcontainer up`.
 - Create: `.devcontainer/Dockerfile`, `.devcontainer/compose.yaml`,
   `.devcontainer/policy/claude-managed-settings.json`,
   `.devcontainer/policy/codex-requirements.toml`, `.devcontainer/policy/codex-config.toml`
+- Modify (only if the P2.1 fallback triggers): `tasks/host/profile/code`,
+  `tests/unit/host/profile_tasks.bats`
 - Test: `tests/unit/container/policy.bats`
 
 **Covers:** AC6 (policy files), AC2 (UID/GID build); spec Tools (self-update off),
 Isolation. TD §2 image, Compose and policy rows, §3.2 mount points, §3.7, §3.8
 (`overrideCommand`).
 
-**Reuse:** v1 `.devcontainer/Dockerfile` for the Docker apt key check, the pinned mise
-download with SHA-256 and the `chmod` of copied files. Drop the base digest argument (TD:
+**Reuse:** v1 `.devcontainer/Dockerfile` for the Docker apt key check, the mise download
+with SHA-256 and the `chmod` of copied files. Pin mise **2026.9.15** (not v1's 2026.9.12,
+on which a failed `mise lock --global` exits 0 with a partial lock), with the SHA-256
+values from that release's checksums; the root `mise.toml` pins the same version for the
+host probes. Drop the base digest argument (TD:
 `FROM debian:trixie-slim`), yq, and `/run/aidc`. Build arguments are `USER_UID`/`USER_GID`
 (TD §3.8). Create, owned by `dev` and in v1's loop shape so parents are owned too:
 `/home/dev/.claude`, `/home/dev/.codex`, `/home/dev/.local`, `/home/dev/.local/state`,
@@ -385,7 +390,9 @@ download with SHA-256 and the `chmod` of copied files. Drop the base digest argu
     `.:/opt/aidc/devcontainer` bind, image `aidc-workspace:local`.
 - [ ] **Step 3: Run** `bats tests/unit/container/policy.bats`. Expected: FAIL.
 - [ ] **Step 4: Implement** the files.
-- [ ] **Step 5: Run** with an unused name `smoke<run>`: `mise run profile:new smoke<run> &&
+- [ ] **Step 5: Run** in an `AIDC_ROOT` copy of the repository (so the developer's
+      `.local/active-profile`, `profiles/` and `projects/` stay untouched), with an unused
+      name `smoke<run>`: `mise run profile:new smoke<run> &&
       mise run profile:code smoke<run>` (VS Code may be absent: the `code` step may fail),
       then poll `docker exec aidc-smoke<run>-workspace-1 cat /opt/aidc/tools/init.status`
       until it no longer starts with `running`. Expected: `ok` or `failed` with named steps,
@@ -427,8 +434,11 @@ only as ordering scaffolding. A test-only Compose file
 `tests/fixtures/compose.test.yaml` adds `GITHUB_TOKEN` as a pass-through environment
 entry (tests only, never the shared file); a second one,
 `tests/fixtures/compose.nonet.yaml`, sets `network_mode: none`. Tests that need either
-start the profile with `docker compose -p aidc-<p> -f .devcontainer/compose.yaml -f
-.local/<p>/compose.yaml -f <test file> up -d` after `profile:code` generated the files.
+run `profile:code` with `devcontainer` and `code` stubbed on `PATH`, so it only generates
+the files and creates the volumes; the first real start is then `docker compose -p
+aidc-<p> -f .devcontainer/compose.yaml -f .local/<p>/compose.yaml -f <test file> up -d`.
+Every first start in the suite uses `compose.test.yaml`, so no tool download runs
+unauthenticated.
 Every test that reads `init.status` polls until it no longer starts with `running`.
 
 - [ ] **Step 1: Probes** (manual parts need VS Code or a login):
@@ -465,12 +475,15 @@ Every test that reads `init.status` polls until it no longer starts with `runnin
   - `plugins.bats`: `a new state profile gets every default and the marker` (AC8); `stop the
     container after the first plugin install, start again: every default and the marker`
     (AC9); `first start on no network: the container runs, and aidc:status run from an
-    untrusted project shows the tools, plugins and the failed initialization` (AC10).
+    untrusted project shows the tools, plugins and the failed initialization`, then
+    `restarted with the network: the tools are installed and init.status is ok` (AC10, TD
+    §3.3 and §6).
   - `privacy.bats`: build context listing (`docker build` of `.devcontainer/` with a debug
     stage, or `tar` of the context) holds no `profiles`, `projects`, `.local`; no file in
-    the image (`docker run --rm` of the image) or in the running container matches
-    `grep -rlIE '^-----BEGIN [A-Z ]*PRIVATE KEY-----'` with `/proc` and `/sys` excluded
-    (text files, line-anchored: the string is compiled into ssh binaries); `GIT_AUTHOR_NAME` and
+    the image (`docker run --rm --user 0` of the image) or in the running container
+    (`docker exec -u 0`) matches `grep -rlIE '^-----BEGIN [A-Z ]*PRIVATE KEY-----'` with
+    `/proc` and `/sys` excluded, asserted as empty output (text files, line-anchored: the
+    string is compiled into ssh binaries); `GIT_AUTHOR_NAME` and
     `GIT_COMMITTER_EMAIL` from `profile.env` appear in a test commit; the socket exists only
     with `DOCKER_SOCKET=on` (AC12).
 - [ ] **Step 3: Run** `GITHUB_TOKEN=… mise run test:integration`. Expected: PASS; any
@@ -538,3 +551,10 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [Minor] M1: poll `init.status`; M2: no-network via a test-only Compose file; M3: shared image outside cleanup, per-run names everywhere; M4: P6.4 needs a positive log line; M5: zshrc test skips without zsh, overridable path; M6: `common.sh` listed; M9: smoke on an unused name with cleanup; M10: neutral fixtures; license: the round's evidence.
 - fixed 2026-09-28 — [Minor] M7: names `locks`/`active-profile` rejected; ruling: 2026-09-28 (developer). M8: the Codex guard is removed and both CLIs default to latest, with the table risk accepted; ruling: 2026-09-28 (developer).
 - signal 2026-09-28 — one diff-scoped round on these fixes suffices.
+
+### 2026-09-28 — plan-adversary, opus 5.5, blocking (round 2, full-document)
+
+- fixed 2026-09-28 — [Important] I1: the lock-failure behaviour holds only on mise 2026.9.15, and v1's 2026.9.12 pin never recovers an offline first start; license: probe and TD §3.3/§6; image and host pin 2026.9.15, probes on it, an online-restart case added to AC10.
+- fixed 2026-09-28 — [Important] I2: the test Compose files ran after a real first start; license: AC10 and the round-1 I4 ruling; `profile:code` stubbed in those tests, first real start through `docker compose … -f <test file>`, every first start authenticated.
+- fixed 2026-09-28 — [Minor] M1: key scan as root with empty-output assertion; M2: conditional Files for the P2.1 fallback; M3: the smoke test runs in an `AIDC_ROOT` copy; license: the round's evidence.
+- signal 2026-09-28 — one confirming full-document round after these fixes.
