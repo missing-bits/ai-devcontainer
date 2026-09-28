@@ -89,11 +89,17 @@ the tools lock `/opt/aidc/tools/.lock`. *Copy* always means: write
 `/opt/aidc/devcontainer/mise.toml` to a temporary file in the volume, then rename
 it over `mise.toml`, so an interrupted copy leaves the old file or none.
 
-- start: copy when no copy exists; run `mise lock --global` when no
-  `mise.lock` exists (so a first start that failed offline locks again at the
-  next start); then `mise install --locked`;
-- `aidc:sync`: copy, `mise lock --global`, `mise install --locked`;
-- `aidc:update`: as `aidc:sync`, then `mise upgrade`.
+- start: copy when no copy exists; run `mise lock --global --platform
+  <container platform>` when no `mise.lock` exists (so a first start that
+  failed offline locks again at the next start); then `mise install --locked`;
+- `aidc:sync`: copy, `mise lock --global --platform <container platform>`,
+  `mise install --locked`;
+- `aidc:update`: as `aidc:sync` (with `mise lock --global --platform
+  <container platform>`), then `mise upgrade`.
+
+The lock in the profile tools volume serves only this container, so an asset
+missing for another architecture must not block it; `<container platform>` is
+`linux-x64` or `linux-arm64`, from `uname -m`.
 
 When `mise lock --global` fails, for example because one declared tool cannot
 be resolved, no `mise.lock` is written and `mise install --locked` would refuse
@@ -404,3 +410,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — a failed `mise lock --global` left nothing installable, the Codex version guard compared the pin with itself, and the names `locks`/`active-profile` collided with `.local/` entries (plan-adversary round 1, I2, M8, M7); ruling: 2026-09-28 (developer): plain `mise install` after a failed lock; no Codex guard, both CLIs default to latest with the table risk accepted; the two names rejected.
 - fixed 2026-09-28 — the lock-failure fallback was verified on mise 2026.9.15 only (plan-adversary round 2, I1); license: the probe; §3.3 names the version the image pins.
 - fixed 2026-09-28 — offline, `mise ls` omits unresolvable `latest` tools, so `aidc:status` could not show the agent CLIs (plan-adversary round 3, I1); ruling: 2026-09-28 (developer); status lists the declared tools from the copy and marks missing ones.
+- fixed 2026-09-28 — a lock across all platforms failed when a declared version lacked another architecture's asset (implementation Task 4, P4.4); ruling: 2026-09-28 (developer); locks cover the container platform only.

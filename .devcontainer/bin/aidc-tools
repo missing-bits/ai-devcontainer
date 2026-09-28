@@ -73,12 +73,33 @@ tool_versions() {
 	done <<<"$declared"
 }
 
-# install [lock]: runs `mise lock --global` when asked, then
-# `mise install --locked`; after a failed lock, plain `mise install`, which
-# installs what it can resolve (TD §3.3). Returns non-zero on any failure.
+# platform: prints the container's platform in mise's naming, or fails for
+# an architecture it does not map.
+platform() {
+	case "$(uname -m)" in
+	x86_64 | amd64) printf 'linux-x64\n' ;;
+	aarch64 | arm64) printf 'linux-arm64\n' ;;
+	*) return 1 ;;
+	esac
+}
+
+# lock_tools: locks the copy for the container's platform only; the lock in
+# the tools volume serves only this container (TD §3.3).
+lock_tools() {
+	local current
+	current="$(platform)" || {
+		aidc::warn "unknown architecture $(uname -m)"
+		return 1
+	}
+	mise lock --global --platform "$current"
+}
+
+# install [lock]: runs lock_tools when asked, then `mise install --locked`;
+# after a failed lock, plain `mise install`, which installs what it can
+# resolve (TD §3.3). Returns non-zero on any failure.
 install() {
 	local rc=0
-	if [ "${1-}" = lock ] && ! mise lock --global; then
+	if [ "${1-}" = lock ] && ! lock_tools; then
 		aidc::warn "mise lock --global failed; running plain mise install"
 		mise install || true
 		return 1

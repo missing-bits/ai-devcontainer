@@ -34,7 +34,9 @@ EOF
   for cli in claude codex; do
     printf '#!/bin/sh\nprintf x >>"$STUB_DIR/%s-called"\n' "$cli" >"$BATS_TEST_TMPDIR/bin/$cli"
   done
+  printf '#!/bin/sh\nprintf "%%s\\n" "$STUB_ARCH"\n' >"$BATS_TEST_TMPDIR/bin/uname"
   chmod +x "$BATS_TEST_TMPDIR/bin/"*
+  export STUB_ARCH=x86_64
   PATH="$BATS_TEST_TMPDIR/bin:$PATH"
   export PATH
   unset STUB_FAIL STUB_TOOLS STUB_LS_JSON
@@ -67,7 +69,7 @@ old_copy() {
   run "$T" start
   assert_success
   cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
-  assert_calls "lock --global" "install --locked"
+  assert_calls "lock --global --platform linux-x64" "install --locked"
 }
 
 @test "start locks again when only the copy exists" {
@@ -75,7 +77,7 @@ old_copy() {
   run "$T" start
   assert_success
   grep -qx 'old = "1"' "$AIDC_TOOLS_DIR/mise.toml"
-  assert_calls "lock --global" "install --locked"
+  assert_calls "lock --global --platform linux-x64" "install --locked"
 }
 
 @test "start with a copy and a lock only installs" {
@@ -92,7 +94,7 @@ old_copy() {
   run "$T" sync
   assert_success
   cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
-  assert_calls "lock --global" "install --locked"
+  assert_calls "lock --global --platform linux-x64" "install --locked"
 }
 
 @test "update runs the same then mise upgrade" {
@@ -100,7 +102,7 @@ old_copy() {
   run "$T" update
   assert_success
   cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
-  assert_calls "lock --global" "install --locked" "upgrade"
+  assert_calls "lock --global --platform linux-x64" "install --locked" "upgrade"
 }
 
 @test "the copy is readable by everyone" {
@@ -137,11 +139,29 @@ old_copy() {
 
 @test "a failing mise lock --global falls back to plain mise install" {
   old_copy
-  export STUB_FAIL="lock --global"
+  export STUB_FAIL="lock --global --platform linux-x64"
   run "$T" sync
   assert_status 1
   assert_output_contains "mise lock --global failed"
-  assert_calls "lock --global" "install" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
+  assert_calls "lock --global --platform linux-x64" "install" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
+}
+
+@test "the lock covers the container platform only" {
+  local arch expected
+  for arch in x86_64:linux-x64 amd64:linux-x64 aarch64:linux-arm64 arm64:linux-arm64; do
+    rm -f "$STUB_DIR/mise-calls"
+    STUB_ARCH="${arch%%:*}" run "$T" sync
+    assert_success
+    expected="${arch#*:}"
+    assert_calls "lock --global --platform $expected" "install --locked"
+  done
+}
+
+@test "an unknown architecture skips the lock and falls back to plain mise install" {
+  STUB_ARCH=sparc64 run "$T" sync
+  assert_status 1
+  assert_output_contains "unknown architecture sparc64"
+  assert_calls "install" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
 }
 
 @test "update still upgrades after a failing install and exits non-zero" {
@@ -149,7 +169,7 @@ old_copy() {
   export STUB_FAIL="install --locked"
   run "$T" update
   assert_status 1
-  assert_calls "lock --global" "install --locked" "upgrade" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
+  assert_calls "lock --global --platform linux-x64" "install --locked" "upgrade" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
 }
 
 @test "every mise call runs from / with only the two MISE_* variables" {
