@@ -49,6 +49,7 @@ assert_not_run() {
 
 daemon_message="needs the managed app-server daemon, which aidc containers do not run"
 image_message="codex: write --image=<file> once per file, so the command can be identified"
+sync_invocation="MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:sync"
 
 @test "claude passes its arguments, working directory, and environment unchanged and resolves once" {
   mkdir -p "$BATS_TEST_TMPDIR/work"
@@ -77,12 +78,12 @@ kept" ]
   unset MISE_FOO
 }
 
-@test "no resolved CLI exits non-zero and names the aidc:sync invocation" {
+@test "no resolved CLI exits non-zero and names the documented aidc:sync invocation" {
   for launcher in claude codex; do
     unset "STUB_MISE_BIN_$launcher"
     run "$L/$launcher"
     assert_not_run
-    assert_output_contains "aidc:sync"
+    assert_output_contains "$sync_invocation"
   done
 }
 
@@ -186,6 +187,7 @@ kept" ]
 autoload -Uz add-zsh-hook
 _stub_mise_hook() { path=("__PROJECT_BIN__" "${(@)path:#__PROJECT_BIN__}") }
 add-zsh-hook precmd _stub_mise_hook
+add-zsh-hook chpwd _stub_mise_hook
 EOF
   sed -i "s#__PROJECT_BIN__#$project_bin#g" "$BATS_TEST_TMPDIR/activate.zsh"
 
@@ -197,6 +199,7 @@ EOF
   cat >"$BATS_TEST_TMPDIR/run.zsh" <<EOF
 source "$AIDC_SOURCE_ROOT/.devcontainer/shell/zshrc"
 cd "$work" || exit 1
+print -r -- "CHPWD=\$(command -v claude)"
 for f in "\${precmd_functions[@]}"; do "\$f"; done
 print -r -- "HISTSIZE=\$HISTSIZE SAVEHIST=\$SAVEHIST"
 [[ -o SHARE_HISTORY ]] && print -r -- SHARE_HISTORY=on
@@ -205,6 +208,10 @@ EOF
 
   run --separate-stderr zsh -f "$BATS_TEST_TMPDIR/run.zsh"
   assert_success
+  # The chpwd hook alone, fired by the cd above before any precmd ever runs,
+  # already resolves to the launcher: dropping its registration in zshrc
+  # would leave only the stub's own chpwd hook and fail this line.
+  assert_output_contains "CHPWD=$launchers/claude"
   assert_output_contains "HISTSIZE=50000 SAVEHIST=50000"
   assert_output_contains "SHARE_HISTORY=on"
   [ "${lines[-1]}" = "$launchers/claude" ]

@@ -10,7 +10,7 @@ source "$AIDC_LAUNCHERS/../lib/common.sh"
 # shellcheck source=../lib/mise-isolation.sh
 source "$AIDC_LIB/mise-isolation.sh"
 
-not_launchable="claude is not installed in the tools config copy: run 'mise run aidc:sync'"
+not_launchable="claude is not installed in the tools config copy: run '$AIDC_SYNC_INVOCATION'"
 exe="$(
 	aidc::mise_isolate || exit 1
 	mise which claude

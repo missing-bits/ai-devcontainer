@@ -5,6 +5,8 @@
 # never shadows the launcher (TD §3.6, §3.9). Sets no options beyond the
 # shared-history ones below.
 
+# AIDC_LAUNCHER_DIR is a test seam: production sources this file with no
+# override and gets the default below; a test sets it to a fixture directory.
 AIDC_LAUNCHER_DIR="${AIDC_LAUNCHER_DIR:-/usr/local/lib/aidc/launchers}"
 
 HISTSIZE=50000
