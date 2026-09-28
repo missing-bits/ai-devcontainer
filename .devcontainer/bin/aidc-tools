@@ -1,0 +1,165 @@
+#!/usr/bin/env bash
+# Container tools: `aidc-tools start|sync|update|status` (TD §3.3, §3.9).
+# start, sync and update run under the tools lock; status reads files only
+# and takes no lock. Every mise call runs from / with the isolation of
+# mise-isolation.sh.
+#
+# AIDC_TOOLS_DIR and AIDC_DEVCONTAINER_DIR are test seams: production sets
+# neither and gets the defaults below, which match the fixed
+# MISE_GLOBAL_CONFIG_FILE.
+set -euo pipefail
+AIDC_BIN="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")"
+# shellcheck source=../lib/common.sh
+source "$AIDC_BIN/../lib/common.sh"
+# shellcheck source=../lib/mise-isolation.sh
+source "$AIDC_LIB/mise-isolation.sh"
+
+tools_dir="${AIDC_TOOLS_DIR:-/opt/aidc/tools}"
+source_file="${AIDC_DEVCONTAINER_DIR:-/opt/aidc/devcontainer}/mise.toml"
+copy="$tools_dir/mise.toml"
+lock="$tools_dir/mise.lock"
+claude_state="${CLAUDE_CONFIG_DIR:-/home/dev/.claude}"
+codex_state="${CODEX_HOME:-/home/dev/.codex}"
+
+usage() {
+	aidc::die "usage: aidc-tools start|sync|update|status"
+}
+
+# copy_config: writes the source file to a temporary file in the tools
+# volume, then renames it over the copy, so an interruption leaves the old
+# copy or none.
+copy_config() {
+	local tmp
+	tmp="$(mktemp "$tools_dir/.mise.toml.XXXXXX")" || return 1
+	if cp "$source_file" "$tmp" && chmod 0644 "$tmp" && mv -f "$tmp" "$copy"; then
+		return 0
+	fi
+	rm -f "$tmp"
+	return 1
+}
+
+# declared_tools: prints the tool names the copy declares, one per line, from
+# `mise config get`'s TOML: plain keys first, then one table per tool whose
+# value is a table.
+declared_tools() {
+	mise config get --file "$copy" tools | awk '
+		/^\[/ {
+			in_table = 1
+			key = $0
+			sub(/^\[/, "", key)
+			sub(/\][[:space:]]*$/, "", key)
+			if (key ~ /^"[^"]*"$/) { print substr(key, 2, length(key) - 2) }
+			else if (key ~ /^[A-Za-z0-9_-]+$/) { print key }
+			next
+		}
+		in_table || !/=/ { next }
+		/^"/ { key = substr($0, 2); sub(/".*/, "", key); print key; next }
+		{ key = $0; sub(/[[:space:]]*=.*/, "", key); print key }
+	'
+}
+
+# tool_versions: prints `<tool> <installed version>` or `<tool> missing` for
+# each declared tool.
+tool_versions() {
+	local declared installed tool version
+	declared="$(declared_tools)" || return 1
+	installed="$(mise ls --json 2>/dev/null)" || installed="{}"
+	while IFS= read -r tool; do
+		[ -n "$tool" ] || continue
+		version="$(jq -r --arg t "$tool" \
+			'[.[$t][]? | select(.installed and .active) | .version] | first // empty' \
+			<<<"$installed" 2>/dev/null)" || version=""
+		printf '%s %s\n' "$tool" "${version:-missing}"
+	done <<<"$declared"
+}
+
+# install [lock]: runs `mise lock --global` when asked, then
+# `mise install --locked`; after a failed lock, plain `mise install`, which
+# installs what it can resolve (TD §3.3). Returns non-zero on any failure.
+install() {
+	local rc=0
+	if [ "${1-}" = lock ] && ! mise lock --global; then
+		aidc::warn "mise lock --global failed; running plain mise install"
+		mise install || true
+		return 1
+	fi
+	mise install --locked || rc=1
+	return "$rc"
+}
+
+# report_missing: names the declared tools that are not installed.
+report_missing() {
+	local missing
+	missing="$(tool_versions | awk '$2 == "missing" { print $1 }' | paste -sd ' ' -)" || missing=""
+	if [ -n "$missing" ]; then
+		aidc::warn "not installed: $missing"
+	fi
+}
+
+# locked <task>: runs <task> under the tools lock, waiting for it.
+locked() {
+	local rc=0
+	exec 9>>"$tools_dir/.lock"
+	flock 9
+	case "$1" in
+	start)
+		if [ ! -e "$copy" ]; then
+			copy_config || aidc::die "cannot copy $source_file to $copy"
+		fi
+		if [ -e "$lock" ]; then
+			install || rc=1
+		else
+			install lock || rc=1
+		fi
+		;;
+	sync | update)
+		copy_config || aidc::die "cannot copy $source_file to $copy"
+		install lock || rc=1
+		if [ "$1" = update ]; then
+			mise upgrade || rc=1
+		fi
+		;;
+	esac
+	if [ "$rc" -ne 0 ]; then
+		report_missing
+		aidc::die "aidc-tools $1 failed"
+	fi
+}
+
+status() {
+	local marker
+	printf 'init: '
+	if [ -r "$tools_dir/init.status" ]; then
+		cat "$tools_dir/init.status"
+	else
+		printf 'no init.status\n'
+	fi
+	printf '\ninit log (last 20 lines):\n'
+	if [ -r "$tools_dir/init.log" ]; then
+		tail -n 20 "$tools_dir/init.log"
+	else
+		printf '  no init.log\n'
+	fi
+	printf '\ntools:\n'
+	if [ -r "$copy" ]; then
+		tool_versions | sed 's/^/  /'
+	else
+		printf '  no tools config copy\n'
+	fi
+	printf '\nplugins:\n'
+	for marker in "claude:$claude_state" "codex:$codex_state"; do
+		if [ -e "${marker#*:}/.aidc/plugins-initialized" ]; then
+			printf '  %s: initialized\n' "${marker%%:*}"
+		else
+			printf '  %s: not initialized\n' "${marker%%:*}"
+		fi
+	done
+}
+
+[ "$#" -eq 1 ] || usage
+aidc::mise_isolate || aidc::die "cannot change to /"
+case "$1" in
+start | sync | update) locked "$1" ;;
+status) status ;;
+*) usage ;;
+esac

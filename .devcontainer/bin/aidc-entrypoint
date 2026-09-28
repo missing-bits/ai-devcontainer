@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+# Container entrypoint: the start sequence of TD §3.4. Runs the tools step,
+# then plugin initialization for each agent whose launcher resolves its CLI,
+# records the result in the init result marker, and execs the keep-alive
+# command whatever happened, so VS Code can attach. Every step is guarded
+# rather than left to errexit, so every path reaches the final exec.
+#
+# AIDC_TOOLS_DIR is a test seam: production sets none and gets the default.
+set -uo pipefail
+AIDC_BIN="$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" || AIDC_BIN=/usr/local/lib/aidc/bin
+# shellcheck source=../lib/common.sh
+source "$AIDC_BIN/../lib/common.sh" || printf 'aidc: cannot load the container library\n' >&2
+# shellcheck source=../lib/mise-isolation.sh
+source "$AIDC_BIN/../lib/mise-isolation.sh" || printf 'aidc: cannot load the mise isolation library\n' >&2
+
+tools_dir="${AIDC_TOOLS_DIR:-/opt/aidc/tools}"
+marker="$tools_dir/init.status"
+
+utc_now() {
+	date -u +%Y-%m-%dT%H:%M:%SZ
+}
+
+write_marker() {
+	printf '%s\n' "$1" >"$marker" || printf 'aidc: cannot write %s\n' "$marker" >&2
+}
+
+# resolves <agent>: whether the agent's launcher would find its CLI, by the
+# launcher's own resolution (`mise which` under the isolation, from /).
+resolves() {
+	local exe
+	exe="$(
+		aidc::mise_isolate || exit 1
+		mise which "$1" 2>/dev/null
+	)" && [ -n "$exe" ]
+}
+
+start() {
+	local failed=() agent
+	write_marker "running $(utc_now)"
+
+	"$AIDC_BIN/aidc-tools" start || failed+=(tools)
+
+	for agent in claude codex; do
+		if ! resolves "$agent"; then
+			printf 'aidc: %s is not installed; plugin initialization skipped\n' "$agent" >&2
+			failed+=("plugins-$agent")
+		elif ! "$AIDC_BIN/aidc-plugins" init "$agent"; then
+			failed+=("plugins-$agent")
+		fi
+	done
+
+	if [ "${#failed[@]}" -eq 0 ]; then
+		write_marker "ok $(utc_now)"
+	else
+		write_marker "failed $(utc_now): ${failed[*]}"
+	fi
+}
+
+# The init log keeps this start's output only; stdout and stderr return to
+# the container's own streams before the exec.
+exec 3>&1 4>&2
+if exec >"$tools_dir/init.log" 2>&1; then
+	start
+else
+	printf 'aidc: cannot write %s/init.log\n' "$tools_dir" >&2
+	start
+fi
+exec 1>&3 2>&4 3>&- 4>&-
+
+if [ "$#" -eq 0 ]; then
+	exec sleep infinity
+fi
+exec "$@"

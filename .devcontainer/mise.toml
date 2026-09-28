@@ -1,0 +1,27 @@
+# Container tools and container tasks (spec Mise scopes, Tools). The first
+# start copies this file into the profile tools volume; later changes reach it
+# through `aidc:sync` (copy, lock, install) or `aidc:update` (also upgrade).
+# Run the tasks as
+#   MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>
+# so no project configuration loads and no task auto-install runs.
+#
+# Both agent CLIs default to their latest version. The codex launcher's
+# tables are verified for Codex 0.157 (.devcontainer/lib/codex-cli.sh); a
+# newer Codex is an accepted risk, and pinning an older one is your choice.
+[tools]
+"aqua:anthropics/claude-code" = "latest"
+"aqua:openai/codex" = "latest"
+"aqua:jdx/usage" = "6"
+"aqua:BurntSushi/ripgrep" = "14"
+
+[tasks."aidc:sync"]
+description = "Copy .devcontainer/mise.toml into the tools volume, lock and install it"
+run = "/usr/local/lib/aidc/bin/aidc-tools sync"
+
+[tasks."aidc:update"]
+description = "As aidc:sync, then upgrade every tool to its newest allowed version"
+run = "/usr/local/lib/aidc/bin/aidc-tools update"
+
+[tasks."aidc:status"]
+description = "Show the last initialization, the container tools and the plugins per agent"
+run = "/usr/local/lib/aidc/bin/aidc-tools status"
