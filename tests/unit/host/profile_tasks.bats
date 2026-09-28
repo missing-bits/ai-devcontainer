@@ -100,7 +100,8 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   grep -q "^docker volume create aidc-codex-demo\$" "$CALLS"
   grep -q "^docker volume create aidc-shell-demo\$" "$CALLS"
   grep -q "^devcontainer up --workspace-folder $AIDC_ROOT/.local/demo\$" "$CALLS"
-  grep -q "^code " "$CALLS"
+  grep -q "^code $AIDC_ROOT/.local/demo\$" "$CALLS"
+  assert_output_contains "Reopen in Container"
   [ "$(cat "$AIDC_ROOT/.local/active-profile")" = demo ]
 
   last_volume="$(grep -n '^docker volume create' "$CALLS" | tail -1 | cut -d: -f1)"

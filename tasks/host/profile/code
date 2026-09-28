@@ -45,5 +45,8 @@ devcontainer up --workspace-folder "$out"
 
 printf '%s\n' "$name" >"$AIDC_ROOT/.local/active-profile"
 
-hex="$(printf '%s' "$out" | od -An -tx1 | tr -d ' \n')"
-code --folder-uri "vscode-remote://dev-container+$hex/workspaces/$name"
+# P2.1 fallback: a dev-container+<hex> folder URI resolves hostPath as a Windows
+# path under WSL, so open the generated folder and let the developer pick
+# "Reopen in Container", which attaches to the running container.
+aidc::info "Opening $out in VS Code: choose \"Reopen in Container\"."
+code "$out"

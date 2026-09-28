@@ -235,9 +235,11 @@ source). Accepted risk: a VS Code started with `COMPOSE_PROJECT_NAME` set
 resolves another project.
 
 `profile:code` runs `devcontainer up --workspace-folder .local/<p>` (reuses a
-running container; *verified*, `findComposeContainer`), then `code
---folder-uri vscode-remote://dev-container+<hex host path of .local/<p>>/workspaces/<p>`
-(form *to verify*). "Rebuild Container" reads the same files.
+running container; *verified*, `findComposeContainer`), then `code .local/<p>`
+and tells the developer to choose "Reopen in Container", which attaches to the
+running container. A `vscode-remote://dev-container+<hex>` folder URI is not
+used: under WSL, VS Code resolves its hostPath as a Windows path (*verified*,
+Task 6 probe P2.1 2026-09-28). "Rebuild Container" reads the same files.
 
 ### 3.9 Implementation details
 
@@ -381,7 +383,6 @@ socket only with the opt-in).
   auto-install setting.
 - The plugin list command and JSON shape per CLI, disabled plugins included.
 - Where Claude keeps its credentials inside `CLAUDE_CONFIG_DIR`.
-- The `vscode-remote://dev-container+…` URI form on Linux and WSL2.
 - How Docker Desktop reports the socket's group inside a container.
 - Whether Docker copies mount-point ownership into an empty external volume on
   every supported topology.
@@ -400,3 +401,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — offline, `mise ls` omits unresolvable `latest` tools, so `aidc:status` could not show the agent CLIs (plan-adversary round 3, I1); ruling: 2026-09-28 (developer); status lists the declared tools from the copy and marks missing ones.
 - fixed 2026-09-28 — a lock across all platforms failed when a declared version lacked another architecture's asset (implementation Task 4, P4.4); ruling: 2026-09-28 (developer); locks cover the container platform only.
 - fixed 2026-09-28 — Codex 0.157.1 rejects `allowed_sandbox_modes` without `read-only`, and forcing Claude's plugin auto-update contradicts leaving updates to the CLIs (Task 6 probes P6.3/P6.4); ruling: 2026-09-28 (developer); both keys dropped, `gnupg` added for the apt key check.
+- fixed 2026-09-28 — the dev-container folder URI fails under WSL (Task 6 probe P2.1); license: the plan's pre-agreed P2.1 fallback; `profile:code` opens `.local/<p>` and asks for "Reopen in Container".
