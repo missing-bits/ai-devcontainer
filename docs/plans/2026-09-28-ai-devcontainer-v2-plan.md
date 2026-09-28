@@ -105,10 +105,12 @@ files row, §3.9 Host tools.
 and the generator of `.local/<p>/`.
 
 **Files:**
-- Create: `tasks/host/lib/common.sh`, `names.sh`, `profile_env.sh`, `generate.sh`,
-  `lock.sh`; `tasks/host/profile/new`, `code`, `remove`; `examples/profile/profile.env`
-- Test: `tests/unit/host/names.bats`, `profile_env.bats`, `generate.bats`,
-  `profile_tasks.bats`
+- Create: `tasks/host/lib/common.sh`, `tasks/host/lib/names.sh`,
+  `tasks/host/lib/profile_env.sh`, `tasks/host/lib/generate.sh`, `tasks/host/lib/lock.sh`;
+  `tasks/host/profile/new`, `tasks/host/profile/code`, `tasks/host/profile/remove`;
+  `examples/profile/profile.env`
+- Test: `tests/unit/host/names.bats`, `tests/unit/host/profile_env.bats`,
+  `tests/unit/host/generate.bats`, `tests/unit/host/profile_tasks.bats`
 
 **Covers:** AC1; AC7 (volume naming); AC11 (with stubbed Docker); AC12 (`GIT_*` and socket
 opt-in in the fragment). TD §3.1, §3.2 (names, absolute bind sources, `external`), §3.8,
@@ -224,7 +226,7 @@ cases). Copy v1 `.devcontainer/profile.d/aidc-path.sh` as `shell/aidc-path.sh`.
 **Files:**
 - Create: `.devcontainer/mise.toml`, `.devcontainer/bin/aidc-tools`,
   `.devcontainer/bin/aidc-entrypoint`
-- Test: `tests/unit/container/tools.bats`, `entrypoint.bats`
+- Test: `tests/unit/container/tools.bats`, `tests/unit/container/entrypoint.bats`
 
 **Covers:** AC5 (unit), AC10 (status half); spec Tools, Container tasks. TD §3.3, §3.4, §3.9
 (`aidc:status`, a CLI installed later), §4 rows for the tools volume, §5 lock 2, §6.
@@ -392,8 +394,9 @@ test:integration`.
 
 **Files:**
 - Create: `tests/helpers/integration.bash`, `tests/integration/00_suite.bats`,
-  `profiles.bats`, `tools.bats`, `policy.bats`, `plugins.bats`, `privacy.bats`,
-  `zz_cleanup.bats`
+  `tests/integration/profiles.bats`, `tests/integration/tools.bats`,
+  `tests/integration/policy.bats`, `tests/integration/plugins.bats`,
+  `tests/integration/privacy.bats`, `tests/integration/zz_cleanup.bats`
 
 **Covers:** AC2–AC12 (automated parts); TD §7 Docker list, §5 cross-container lock. **Needs
 Docker and network.**
@@ -499,3 +502,4 @@ verification items; TD §7 manual checklist.
 - fixed 2026-09-28 — [blocking] pattern cleanup could delete unrelated resources; license: AGENTS.md (preserve user work); per-run names, refusal on collision, exact recorded cleanup.
 - fixed 2026-09-28 — [blocking] the private-key check relied on file names; license: spec Privacy; key-header scan of image and container.
 - fixed 2026-09-28 — [blocking] the matrix check grepped only tests; license: Task 8 goal; per-row-kind checks.
+- gate 2026-09-28 — propagation: three Files lists used shorthand paths; expanded to full paths.
