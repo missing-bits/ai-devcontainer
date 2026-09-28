@@ -216,3 +216,31 @@ EOF
   assert_output_contains "SHARE_HISTORY=on"
   [ "${lines[-1]}" = "$launchers/claude" ]
 }
+
+@test "a shell with no drawn prompt still resolves codex to the launcher, not a mise shim" {
+  command -v zsh >/dev/null 2>&1 || skip "zsh is not installed"
+
+  local launchers="$BATS_TEST_TMPDIR/launchers3" shim="$BATS_TEST_TMPDIR/shim" \
+    zdotdir="$BATS_TEST_TMPDIR/zdotdir"
+  mkdir -p "$launchers" "$shim" "$zdotdir"
+  printf '#!/bin/sh\nprintf launcher\\n\n' >"$launchers/codex"
+  chmod +x "$launchers/codex"
+  printf '#!/bin/sh\nprintf shim\\n\n' >"$shim/codex"
+  chmod +x "$shim/codex"
+
+  stub_mise
+  # mise's real activate script prepends its shim directory to PATH as soon
+  # as it is eval'd, with no hook involved, so this stub does the same.
+  export STUB_MISE_ACTIVATE_SCRIPT="path=('$shim' \"\${(@)path:#$shim}\")"
+  export AIDC_LAUNCHER_DIR="$launchers"
+  export ZDOTDIR="$zdotdir"
+  printf 'source "%s/.devcontainer/shell/zshrc"\n' "$AIDC_SOURCE_ROOT" >"$zdotdir/.zshrc"
+
+  # -ic: interactive, but a single -c command draws no prompt and changes no
+  # directory, so neither the precmd nor the chpwd hook ever fires. Only the
+  # immediate aidc::path_first call after hook registration can put the
+  # launcher ahead of the shim here.
+  run --separate-stderr zsh -ic 'command -v codex'
+  assert_success
+  [ "$output" = "$launchers/codex" ]
+}

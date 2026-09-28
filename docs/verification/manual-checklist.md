@@ -27,10 +27,14 @@ launchers resolve.
 
 **Command:** `command -v claude codex` from the home directory, then again
 after `cd` into a project whose own `mise.toml` declares a `claude` or
-`codex` tool.
+`codex` tool. Also run `zsh -lic 'command -v claude codex'`: a login,
+interactive shell whose single `-c` command draws no prompt and changes no
+directory, so it never fires the `precmd`/`chpwd` hooks that otherwise
+restore the launcher directory's place on PATH.
 
 **Expected:** both resolve to `/usr/local/lib/aidc/launchers/claude` and
-`/usr/local/lib/aidc/launchers/codex` in both locations.
+`/usr/local/lib/aidc/launchers/codex` in both locations, including the
+`zsh -lic` run.
 
 ## 3. History persists across a rebuild and two shells share it
 

@@ -102,6 +102,7 @@ RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
     group=dev && groupadd -g "${USER_GID}" "${group}"; \
   fi \
   && useradd -l -u "${USER_UID}" -g "${group}" -m -d /home/dev -s /usr/bin/zsh dev \
+  && install -o dev -g "${group}" -m 0644 /dev/null /home/dev/.zshrc \
   && install -d -o root -g root -m 0755 /opt/aidc \
   && for dir in /home/dev/.claude /home/dev/.codex /home/dev/.local /home/dev/.local/state \
     /home/dev/.local/state/shell /opt/aidc/tools /workspaces; do \

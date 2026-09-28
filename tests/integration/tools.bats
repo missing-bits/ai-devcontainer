@@ -49,6 +49,15 @@ mise_version() {
   }
 }
 
+@test "an interactive shell has a ~/.zshrc and skips the zsh new-user wizard" {
+  run aidc_it_exec "$C" test -f /home/dev/.zshrc
+  assert_success
+
+  run aidc_it_exec "$C" script -qc "zsh -i -c exit" /dev/null
+  assert_success
+  [[ "$output" != *"Z Shell configuration function for new users"* ]]
+}
+
 @test "claude --version and codex --version report the tools volume's CLIs, also from inside a project declaring other versions" {
   local claude_ver codex_ver
   claude_ver="$(mise_version 'aqua:anthropics/claude-code')"
