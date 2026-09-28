@@ -33,7 +33,7 @@ All parts are `new`.
 | Host tasks | mise file tasks (bash) | new | root `mise.toml`, `tasks/host/`, small library `tasks/host/lib/` | name validation, `profile.env` parsing, profile creation, generation of `.local/<p>/`, volume creation, `devcontainer up`, opening VS Code, removal, the host profile lock, the active profile, repository checks | any change inside a running container; reading agent state |
 | Shared Compose file | Compose file | new | `.devcontainer/compose.yaml` | the `workspace` service: `build` with context `.` (the `.devcontainer/` directory, since Compose resolves it against this first file) tagged `aidc-workspace:local`, `init: true`, user `vscode`, entrypoint, keep-alive command, fixed policy and tool environment, read-only mount of `.devcontainer/` at `/opt/aidc/devcontainer` | anything profile-specific |
 | Generated profile files | local files | new | `.local/<p>/compose.yaml` (the profile's Compose fragment) and `.local/<p>/.devcontainer/devcontainer.json` | the profile's project name, `hostname: <p>`, build arguments, volume names, mounts, environment and socket opt-in | anything versioned; secrets |
-| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, user `vscode` built with the host UID and GID, volume mount points owned by `vscode`, policy files, launchers, scripts, a minimal `zshrc` (§3.6) | container tools; agent state |
+| Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, oh-my-zsh pinned by commit SHA and tarball SHA-256 under `/usr/share/oh-my-zsh` (root-owned, read-only), user `vscode` built with the host UID and GID, volume mount points owned by `vscode`, policy files, launchers, scripts, a `zshrc` loading oh-my-zsh (§3.6) | container tools; agent state |
 | Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude HTTPS marketplace clones, Codex file credentials, Codex default sandbox and approval mode | user preferences; files in agent state |
 | Entrypoint | container executable | new | `.devcontainer/bin/aidc-entrypoint` → `/usr/local/lib/aidc/bin/` | the start sequence (§3.4), the init log and the init result marker, handing over to the keep-alive command whatever happened | tool and plugin logic |
 | Container tasks | mise tasks + bash script | new | `[tasks]` of `.devcontainer/mise.toml` (`aidc:sync`, `aidc:update`, `aidc:status`); `.devcontainer/bin/aidc-tools` shared with the entrypoint; invoked as `MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>`, so the neutral directory is chosen before any configuration loads and no auto-install bypasses the tools lock (*to verify*, §8) | the tools lock, copying the config into the tools volume, `mise install`/`mise upgrade`, the status report | plugin updates |
@@ -177,9 +177,15 @@ source). The plugin list command and its JSON shape are *to verify*.
 
 `PATH` starts with `/usr/local/lib/aidc/launchers` through the image `ENV`, a
 `/etc/profile.d` script (Debian's `/etc/profile` resets `PATH`), and zsh
-`chpwd` and `precmd` hooks registered after mise's, so `cd project && claude`
-still finds the launcher. The `zshrc` also sets `HISTSIZE` and `SAVEHIST` to
-50000 and `SHARE_HISTORY`, which appends to the shared file. Each launcher, in a
+`chpwd` and `precmd` hooks registered after oh-my-zsh's and mise's, so `cd
+project && claude` still finds the launcher. `zshrc` loads oh-my-zsh
+(`ZSH=/usr/share/oh-my-zsh`, `ZSH_THEME="robbyrussell"`, `plugins=(git)`,
+self-update disabled, cache under `$HOME/.cache/oh-my-zsh`,
+`ZSH_DISABLE_COMPFIX=true` because the oh-my-zsh tree is root-owned by
+design) before activating mise, then re-asserts `HISTSIZE` and `SAVEHIST` at
+50000 and `SHARE_HISTORY` after oh-my-zsh is sourced, since oh-my-zsh sets
+its own history options and these must win; `SHARE_HISTORY` appends to the
+shared file. Each launcher, in a
 subshell with the isolation of §3.3, runs `mise which <tool>` from `/`, then
 `exec`s the result in the caller's directory and environment. From `/`,
 `mise which` returns the version `mise.lock` pins, even when the caller's
@@ -274,9 +280,11 @@ Linux path fails). "Rebuild Container" reads the same files.
 - **`profile.env` syntax.** Only whole-line `#` comments are allowed. Values
   are literal: quotes are kept as characters and no expansion takes place. A
   `DOCKER_SOCKET` value other than `on` or `off` is rejected.
-- **Shell.** The login shell of `vscode` is zsh. The minimal config is
-  `/etc/zsh/zshrc` in the image. It runs `mise activate zsh`, then registers
-  the launcher `chpwd` and `precmd` hooks and sets the history options.
+- **Shell.** The login shell of `vscode` is zsh. `/etc/zsh/zshrc` in the
+  image loads the pinned oh-my-zsh (§3.6), re-asserts the history options
+  after it, runs `mise activate zsh`, then registers the launcher `chpwd`
+  and `precmd` hooks. `vscode`'s `.zshrc` stays empty, so the zsh new-user
+  wizard never appears.
 - **Host tools** in the root `mise.toml`, pinned: the Dev Containers CLI,
   `jq`, `bats`, `shellcheck`, `shfmt`. Docker and `flock` are host
   prerequisites.

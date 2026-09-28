@@ -1,15 +1,40 @@
 #!/usr/bin/env zsh
-# Minimal zsh login-shell config for the aidc image: activates mise, then
-# re-asserts the launcher directory first on PATH right away and again after
-# every prompt and directory change, so a project's own mise-provided
-# `claude` or `codex` never shadows the launcher, even in a shell that never
-# draws a prompt or changes directory (e.g. `zsh -ic '...'`) (TD §3.6, §3.9).
-# Sets no options beyond the shared-history ones below.
+# zsh login-shell config for the aidc image: loads oh-my-zsh (pinned, no
+# self-update), re-asserts the shared history settings oh-my-zsh's own
+# history module would otherwise set, activates mise, then re-asserts the
+# launcher directory first on PATH right away and again after every prompt
+# and directory change, so a project's own mise-provided `claude` or `codex`
+# never shadows the launcher, even in a shell that never draws a prompt or
+# changes directory (e.g. `zsh -ic '...'`) (TD §3.6, §3.9).
 
-# AIDC_LAUNCHER_DIR is a test seam: production sources this file with no
-# override and gets the default below; a test sets it to a fixture directory.
+# AIDC_LAUNCHER_DIR and AIDC_OMZ_DIR are test seams: production sources this
+# file with neither set and gets the defaults below; a test points one at a
+# fixture directory. AIDC_OMZ_DIR, not $ZSH itself, is the seam, so a
+# developer's own interactive shell (which may already export a real $ZSH
+# from a personal oh-my-zsh install) can never leak into a test run.
 AIDC_LAUNCHER_DIR="${AIDC_LAUNCHER_DIR:-/usr/local/lib/aidc/launchers}"
 
+# oh-my-zsh, pinned at image build time under /usr/share/oh-my-zsh
+# (root-owned, read-only). A test environment with no oh-my-zsh installed
+# leaves $ZSH/oh-my-zsh.sh absent, so this whole block, cache directory
+# included, is skipped and a plain zsh is kept.
+ZSH="${AIDC_OMZ_DIR:-/usr/share/oh-my-zsh}"
+ZSH_THEME="robbyrussell"
+plugins=(git)
+zstyle ':omz:update' mode disabled
+DISABLE_AUTO_UPDATE=true
+# The oh-my-zsh tree and its parents are root-owned by design (read-only for
+# the container user), which oh-my-zsh's own compaudit would otherwise flag.
+ZSH_DISABLE_COMPFIX=true
+
+if [ -f "$ZSH/oh-my-zsh.sh" ]; then
+  ZSH_CACHE_DIR="$HOME/.cache/oh-my-zsh"
+  [ -d "$ZSH_CACHE_DIR" ] || mkdir -p "$ZSH_CACHE_DIR"
+  source "$ZSH/oh-my-zsh.sh"
+fi
+
+# oh-my-zsh's history module sets its own HISTSIZE/SAVEHIST/history options;
+# these values win because they are set again here, after it is sourced.
 HISTSIZE=50000
 SAVEHIST=50000
 setopt SHARE_HISTORY

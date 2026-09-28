@@ -59,6 +59,23 @@ RUN case "${TARGETARCH}" in \
   && install -m 0755 "${tmp}/mise/bin/mise" /usr/local/bin/mise \
   && rm -rf "${tmp}"
 
+# oh-my-zsh, pinned by commit SHA and the release tarball's SHA-256 (the
+# commit is GitHub's `ohmyzsh/ohmyzsh` master tip as of this pin; TD §3.6,
+# §3.9), placed under /usr/share/oh-my-zsh, owned by root and read-only for
+# other users. `/etc/zsh/zshrc` loads it for the `vscode` user.
+ARG OMZ_COMMIT=83a0ec79ee3b1f64c6ae2e80dcb1fb27a55e5952
+ARG OMZ_SHA256=958fb1f4ed53c1cdbce76368b58efbec6d77a72178199de86511e01639996a31
+RUN tmp="$(mktemp -d)" \
+  && curl -fsSL -o "${tmp}/omz.tar.gz" \
+    "https://github.com/ohmyzsh/ohmyzsh/archive/${OMZ_COMMIT}.tar.gz" \
+  && echo "${OMZ_SHA256}  ${tmp}/omz.tar.gz" | sha256sum -c - \
+  && tar -xzf "${tmp}/omz.tar.gz" -C "${tmp}" \
+  && install -d -o root -g root -m 0755 /usr/share/oh-my-zsh \
+  && cp -R "${tmp}/ohmyzsh-${OMZ_COMMIT}/." /usr/share/oh-my-zsh/ \
+  && chown -R root:root /usr/share/oh-my-zsh \
+  && chmod -R a+rX,go-w /usr/share/oh-my-zsh \
+  && rm -rf "${tmp}"
+
 # Container scripts, agent CLI launchers, policy files and shell integration,
 # owned by root (TD §3.6, §3.7, §3.9).
 COPY bin/ /usr/local/lib/aidc/bin/

@@ -58,6 +58,13 @@ mise_version() {
   [[ "$output" != *"Z Shell configuration function for new users"* ]]
 }
 
+@test "an interactive zsh loads the pinned oh-my-zsh theme and still resolves the launcher" {
+  run aidc_it_exec "$C" zsh -ic 'echo $ZSH_THEME; command -v claude'
+  assert_success
+  [[ "${lines[0]}" == "robbyrussell" ]]
+  [[ "${lines[1]}" == "/usr/local/lib/aidc/launchers/claude" ]]
+}
+
 @test "claude --version and codex --version report the tools volume's CLIs, also from inside a project declaring other versions" {
   local claude_ver codex_ver
   claude_ver="$(mise_version 'aqua:anthropics/claude-code')"
