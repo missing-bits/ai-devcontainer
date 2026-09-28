@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+#MISE description="Create an environment profile from the versioned example"
+#USAGE arg "<name>" help="Profile name"
+set -euo pipefail
+# shellcheck source=../lib/common.sh
+source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=../lib/lock.sh
+source "$AIDC_ROOT/tasks/host/lib/lock.sh"
+
+name="${1:-${usage_name:-}}"
+aidc::require_name profile "$name"
+aidc::profile_lock "$name" lock_fd
+
+target="$AIDC_ROOT/profiles/$name"
+[ ! -e "$target" ] || aidc::die "profile '$name' already exists: $target"
+mkdir -p "$AIDC_ROOT/profiles"
+find "$AIDC_ROOT/profiles" -maxdepth 1 -name ".$name.new.*" -exec rm -rf {} +
+staging="$(mktemp -d "$AIDC_ROOT/profiles/.$name.new.XXXXXX")"
+cp "$AIDC_ROOT/examples/profile/profile.env" "$staging/profile.env"
+mv -T "$staging" "$target"
+mkdir -p "$AIDC_ROOT/projects/$name"
+aidc::info "Created profile '$name' in profiles/$name. Edit profiles/$name/profile.env."

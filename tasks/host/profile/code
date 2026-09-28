@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+#MISE description="Generate a profile's container files, start it, and open VS Code"
+#USAGE arg "[name]" help="Profile name (defaults to the active profile)"
+set -euo pipefail
+# shellcheck source=../lib/common.sh
+source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=../lib/lock.sh
+source "$AIDC_ROOT/tasks/host/lib/lock.sh"
+# shellcheck source=../lib/profile_env.sh
+source "$AIDC_ROOT/tasks/host/lib/profile_env.sh"
+# shellcheck source=../lib/generate.sh
+source "$AIDC_ROOT/tasks/host/lib/generate.sh"
+
+name="${1:-${usage_name:-}}"
+if [ -z "$name" ]; then
+  if [ -f "$AIDC_ROOT/.local/active-profile" ]; then
+    name="$(cat "$AIDC_ROOT/.local/active-profile")"
+  else
+    aidc::die "no profile given and no active profile: pass a name, or create one with 'mise run profile:new <name>'; profiles/: $(aidc::list_profiles | tr '\n' ' ')"
+  fi
+fi
+
+# TD SS3.9: validate the name and profile.env before touching the lock, the
+# generated files, or any Docker object.
+aidc::require_name profile "$name"
+aidc::load_profile_env "$name"
+
+gid=""
+if [ "$AIDC_DOCKER_SOCKET" = on ]; then
+  gid="$(stat -c %g /var/run/docker.sock)" || aidc::die "cannot read the Docker socket's group"
+fi
+
+aidc::profile_lock "$name" lock_fd
+
+out="$AIDC_ROOT/.local/$name"
+rm -rf -- "$out"
+aidc::generate "$name" "$out" "$gid"
+
+docker volume create "aidc-tools-$name" >/dev/null
+docker volume create "aidc-claude-$AIDC_STATE_CLAUDE" >/dev/null
+docker volume create "aidc-codex-$AIDC_STATE_CODEX" >/dev/null
+docker volume create "aidc-shell-$AIDC_STATE_SHELL" >/dev/null
+
+devcontainer up --workspace-folder "$out"
+
+printf '%s\n' "$name" >"$AIDC_ROOT/.local/active-profile"
+
+hex="$(printf '%s' "$out" | od -An -tx1 | tr -d ' \n')"
+code --folder-uri "vscode-remote://dev-container+$hex/workspaces/$name"

@@ -1,0 +1,35 @@
+#!/usr/bin/env bash
+#MISE description="Remove a profile's container, generated files and tools volume"
+#USAGE arg "<name>" help="Profile name"
+set -euo pipefail
+# shellcheck source=../lib/common.sh
+source "$(dirname "$0")/../lib/common.sh"
+# shellcheck source=../lib/lock.sh
+source "$AIDC_ROOT/tasks/host/lib/lock.sh"
+
+name="${1:-${usage_name:-}}"
+aidc::require_name profile "$name"
+
+aidc::profile_lock "$name" lock_fd
+
+out="$AIDC_ROOT/.local/$name"
+# TD SS3.9: tear down against the generated files (Compose picks up
+# compose.yaml from the working directory) when they still exist, otherwise
+# fall back to the com.docker.compose.project=aidc-<name> label alone.
+if [ -d "$out" ]; then
+  (cd "$out" && docker compose -p "aidc-$name" down)
+else
+  (cd "$AIDC_ROOT" && docker compose -p "aidc-$name" down)
+fi
+
+# Never removes a state volume (Claude, Codex, shell); tolerant of an
+# already-removed tools volume so a rerun succeeds.
+docker volume rm "aidc-tools-$name" >/dev/null 2>&1 || true
+
+rm -rf -- "$out"
+
+if [ -f "$AIDC_ROOT/.local/active-profile" ] && [ "$(cat "$AIDC_ROOT/.local/active-profile")" = "$name" ]; then
+  rm -f "$AIDC_ROOT/.local/active-profile"
+fi
+
+aidc::info "Removed profile '$name'."
