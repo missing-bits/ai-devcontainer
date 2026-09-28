@@ -48,7 +48,8 @@ TD sections it covers instead.
   `MISE_GLOBAL_CONFIG_FILE=/opt/aidc/tools/mise.toml` set (TD §3.3).
 - Integration tests read `GITHUB_TOKEN` from the host and pass it to containers only as an
   environment variable, never in logs, build arguments or persisted files.
-- Every task runs `mise run check`; Docker tasks also run `mise run test:integration`.
+- Every task runs `mise run check`; from Task 7 on, `mise run test:integration` too.
+  Tasks 2 and 6 run only their probes and smoke steps against Docker.
   Report actual results; never claim an untested integration.
 - Commits: one-line Conventional Commit, no body, no trailers.
 - Probe results go to `docs/verification/acceptance-matrix.md` (Task 8); a probe whose
@@ -149,8 +150,10 @@ pattern).
   - `profile_tasks.bats`: `profile:new demo` creates `profiles/demo/profile.env` (the
     example) and `projects/demo/`; `profile:new Bad/Name` exits non-zero and creates
     nothing; `profile:new demo` twice refuses the second time and keeps the file;
-    `profile:code` with an unknown key exits non-zero, writes no `.local/demo/`, calls no
-    `docker`/`devcontainer`; `profile:code demo` runs `docker volume create` for the four
+    `profile:code` with an unknown key or an invalid state profile name exits non-zero,
+    and a before/after listing of the whole test repository (`find`, including
+    `.local/`) is identical: no `.local/demo/`, no lock file, no `active-profile`, and no
+    `docker`/`devcontainer` call; `profile:code demo` runs `docker volume create` for the four
     volumes, `devcontainer up --workspace-folder .local/demo`, then writes
     `.local/active-profile`, then calls `code`; `profile:code` alone uses the active
     profile, and without one exits non-zero listing `profiles/`; `profile:remove demo` calls
@@ -160,7 +163,8 @@ pattern).
     left (label fallback used).
 - [ ] **Step 3: Run** `mise run test`. Expected: FAIL.
 - [ ] **Step 4: Implement** the libraries and tasks. Generate both files with `jq`. The lock
-      file is `.local/locks/<p>.lock`.
+      file is `.local/locks/<p>.lock`; `profile:code` validates the name and `profile.env`
+      before it creates the lock directory or takes the lock (TD §3.9).
 - [ ] **Step 5: Run** `mise run check`. Expected: PASS.
 - [ ] **Step 6: Commit** `feat: add profile host tasks and generator`
 
@@ -360,9 +364,9 @@ download with SHA-256 and the `chmod` of copied files. Drop the base digest argu
     configuration; record the command that reports the effective settings (Task 7 uses it).
     Fallback: stop and report to the developer; no flag injection without a ruling.
   - *P6.4, Claude plugin auto-update (TD §8):* with the managed settings, `claude --debug`
-    briefly and look for "Plugin autoupdate: skipped". If it appears, fallback: document
-    plugin updates as by hand (`claude plugin update`), which the spec allows; manual
-    checklist item 10 stays.
+    briefly and look for "Plugin autoupdate: skipped". If it appears, stop and report to
+    the developer: the spec requires Claude's plugin auto-update to survive the policy.
+    Manual checklist item 10 stays.
 - [ ] **Step 2: Write the failing tests** (`policy.bats`, no Docker):
   - Claude managed settings hold exactly `env.DISABLE_UPDATES="1"`,
     `env.FORCE_AUTOUPDATE_PLUGINS="1"`, `env.CLAUDE_CODE_PLUGIN_PREFER_HTTPS="1"`.
@@ -395,8 +399,10 @@ test:integration`.
 Docker and network.**
 
 **Reuse:** v1 `tests/integration/00_suite.bats`, `zz_cleanup.bats` and `aidc_test_repo` for
-suite setup and teardown. Profiles are named `itest-a`, `itest-b`; state profiles
-`itest-shared`; cleanup removes only `aidc-*itest*` containers and volumes.
+suite setup and teardown. Every name carries a per-run id (`it<run>-a`, `it<run>-b`,
+state profile `it<run>-shared`); setup refuses to start when any resource with those
+names exists; each test records the containers and volumes it creates, and cleanup
+removes exactly those, never by pattern.
 
 **Interfaces:** drives the host tasks of Task 2 through a copied repository (`AIDC_ROOT`);
 `code` is stubbed, `devcontainer` and `docker` are real.
@@ -437,8 +443,9 @@ suite setup and teardown. Profiles are named `itest-a`, `itest-b`; state profile
     (AC9); `first start on no network: the container runs, and aidc:status run from an
     untrusted project shows the tools, plugins and the failed initialization` (AC10).
   - `privacy.bats`: build context listing (`docker build` of `.devcontainer/` with a debug
-    stage, or `tar` of the context) holds no `profiles`, `projects`, `.local`; `find / -name
-    'id_*' ! -name '*.pub'` in the container finds nothing; `GIT_AUTHOR_NAME` and
+    stage, or `tar` of the context) holds no `profiles`, `projects`, `.local`; no file in
+    the image (`docker run --rm` of the image) or in the running container, `/proc` and
+    `/sys` excluded, contains a `-----BEGIN ... PRIVATE KEY-----` header; `GIT_AUTHOR_NAME` and
     `GIT_COMMITTER_EMAIL` from `profile.env` appear in a test commit; the socket exists only
     with `DOCKER_SOCKET=on` (AC12).
 - [ ] **Step 3: Run** `GITHUB_TOKEN=… mise run test:integration`. Expected: PASS; any
@@ -477,6 +484,18 @@ verification items; TD §7 manual checklist.
 - [ ] **Step 4: Update** `AGENTS.md`: the stage paragraph says v2 is implemented per this
       plan; Validation lists `mise run check`, `mise run test:integration` (Docker, network,
       `GITHUB_TOKEN` as environment only) and the manual checklist.
-- [ ] **Step 5: Run** `mise run check` and check each matrix row names an existing test
-      (`grep` the test name in `tests/`). Expected: PASS, no missing test.
+- [ ] **Step 5: Run** `mise run check` and check the matrix: each automated row's test
+      name exists in `tests/`, each manual row's item exists in `manual-checklist.md`,
+      and each probe row has a result and a date. Expected: PASS, nothing missing.
 - [ ] **Step 6: Commit** `docs: add readme, verification checklist and acceptance matrix`
+
+## Review rounds
+
+### 2026-09-28 — Codex co-author review, NOT READY
+
+- fixed 2026-09-28 — [blocking] integration tests required before Task 7 creates them; license: plan order; required from Task 7 on.
+- fixed 2026-09-28 — [blocking] the host lock was created before `profile.env` validation, breaking AC1; license: spec AC1; validation first, whole-tree delta test; TD §3.9 order corrected.
+- fixed 2026-09-28 — [blocking] manual Claude plugin updates are no fallback; license: spec Plugins (auto-update must survive the policy); P6.4 stops and reports.
+- fixed 2026-09-28 — [blocking] pattern cleanup could delete unrelated resources; license: AGENTS.md (preserve user work); per-run names, refusal on collision, exact recorded cleanup.
+- fixed 2026-09-28 — [blocking] the private-key check relied on file names; license: spec Privacy; key-header scan of image and container.
+- fixed 2026-09-28 — [blocking] the matrix check grepped only tests; license: Task 8 goal; per-row-kind checks.

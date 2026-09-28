@@ -243,8 +243,8 @@ running container; *verified*, `findComposeContainer`), then `code
   - `mise ls` against the tools config copy;
   - for each agent, whether its plugin marker exists.
   It calls no agent CLI.
-- **`profile:code` order.** It validates the name, takes the host profile
-  lock, parses and validates `profile.env`, generates `.local/<p>/`, runs
+- **`profile:code` order.** It validates the name, parses and validates
+  `profile.env`, then takes the host profile lock, generates `.local/<p>/`, runs
   `devcontainer up`, writes `.local/active-profile`, then opens VS Code. A
   failure before generation changes no file. This is the command that
   enforces AC1's `profile.env` rules; `profile:new` validates only the name.
@@ -386,3 +386,7 @@ socket only with the opt-in).
 Reviewed with the design spec in its architect round 1 (2026-09-28, LGTM); the findings and fixes are recorded in the spec's Review rounds section.
 
 Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 implementer questions, all disposed in place — §3.3 locks again when `mise.lock` is missing, §3.5 carries the real catalog and the Codex list shape, §3.7 and §3.8 wording, and the new §3.9 answers the implementer questions.
+
+### 2026-09-28 — fix from docs/plans/2026-09-28-ai-devcontainer-v2-plan.md
+
+- fixed 2026-09-28 — `profile:code` took the host lock before validating `profile.env`, which creates a file and breaks AC1; license: spec AC1 (change no file); §3.9 now validates first (Codex co-author review of the plan).
