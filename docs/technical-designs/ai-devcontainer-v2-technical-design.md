@@ -303,7 +303,10 @@ Linux path fails). "Rebuild Container" reads the same files.
   wizard never appears.
 - **Host tools** in the root `mise.toml`, pinned: `node` (the npm-backed Dev
   Containers CLI needs it), the Dev Containers CLI, `jq`, `bats`,
-  `shellcheck`, `shfmt`. Docker and `flock` are host prerequisites.
+  `shellcheck`, `shfmt`, and `usage` for shell completion of task
+  arguments. The agent CLIs for working on this repository,
+  `aqua:anthropics/claude-code` and `aqua:openai/codex`, follow `latest`
+  like the container's. Docker and `flock` are host prerequisites.
 - **Reused v1 files** (branch `feature/ai-devcontainer`):
   `.devcontainer/lib/mise-isolation.sh`, which removes every inherited
   `MISE_*` variable and sets only `MISE_DATA_DIR` and
@@ -433,3 +436,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — opening `.local/<p>` and asking for "Reopen in Container" left the developer in the generated folder; license: developer run with the `wslpath -w` host path (window opened in the container); `profile:code` opens the container directly.
 - fixed 2026-09-28 — developer ruling after first VS Code use: the container user is `vscode` (home `/home/vscode`, replacing `dev` everywhere, including the §3.2 mount targets); the generated fragment sets `hostname: <p>`; the image installs oh-my-zsh at a pinned commit under `/usr/share/oh-my-zsh`, loaded by `/etc/zsh/zshrc` with the default theme and the `git` plugin, updates disabled and its cache under `$HOME/.cache/oh-my-zsh`; the launcher PATH hooks stay registered after mise's and oh-my-zsh's.
 - fixed 2026-09-29 — integrity audit (consumption of the implemented design): 14 defects and 8 questions, all bringing the documents in line with the shipped code and probes; license: the audit's two-quote proofs, the acceptance matrix and the code.
+- fixed 2026-09-29 — host tools lacked `usage` for task-argument completion and the agent CLIs for working on this repository; ruling: 2026-09-29 (developer); `usage` pinned, Claude Code and Codex at `latest`, exempt from the pinning test.

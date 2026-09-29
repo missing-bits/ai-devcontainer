@@ -37,7 +37,9 @@ load ../../helpers/common
   run mise config get --file "$AIDC_SOURCE_ROOT/mise.toml" tools
   assert_success
   local versions
-  versions="$(grep -oE '"[^"]*"$' <<<"$output" | tr -d '"')"
+  # The agent CLIs follow latest by developer decision (TD §3.9).
+  versions="$(grep -vE '^"aqua:(anthropics/claude-code|openai/codex)"' <<<"$output" |
+    grep -oE '"[^"]*"$' | tr -d '"')"
   [ -n "$versions" ]
   run grep -vE '^[0-9]+\.[0-9]+\.[0-9]+$' <<<"$versions"
   assert_failure
