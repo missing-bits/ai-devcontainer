@@ -56,7 +56,7 @@ integration runs of 2026-09-29.
 | S1 | integration | `sudo_mise_trust.bats` | "S1: vscode runs sudo without a password" | pass |
 | S2 | integration | `sudo_mise_trust.bats` | "S2: visudo accepts the image's sudoers configuration" | pass |
 | S3 | integration, unit | `sudo_mise_trust.bats`; `tests/unit/container/tools.bats` | "S3: vscode updates mise without sudo, and a recreated container returns to the pinned version"; "self-update updates the mise binary only, without the tools lock" | pass |
-| S4 | checklist | `manual-checklist.md` item 12 | — | not run (needs VS Code) |
+| S4 | checklist | `manual-checklist.md` item 12 | — | pass (developer run, 2026-09-29: mise 2026.9.16 after `mise self-update` as `vscode`; VS Code "Rebuild Container" recreated the container and rebuilt the image, and `mise --version` reported the pinned 2026.9.15) |
 | S5 | integration, unit | `sudo_mise_trust.bats`; `tests/unit/container/entrypoint.bats`; `tests/unit/container/tools.bats` | the four "S5: …" tests; the entrypoint's start-field tests; the `start copy` tests | pass |
 | S6 | integration | `sudo_mise_trust.bats` | "S6: a project in the profile project space loads without a trust prompt"; "S6: a fresh project outside /workspaces still needs trust in the shell" | pass |
 | S7 | integration | `sudo_mise_trust.bats` | "S7: an archive S downloaded installs in B, with an empty tools volume, on no network" | pass |
