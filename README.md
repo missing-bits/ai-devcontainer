@@ -43,7 +43,8 @@ MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:status
 
 - [Host setup](docs/guides/host-setup.md): requirements, mise, `ssh-agent`.
 - [Profiles](docs/guides/profiles.md): creating, changing and removing
-  profiles; sharing state; Git identity and SSH accounts.
+  profiles; sharing state; logging in to the agents; Git identity and SSH
+  accounts.
 - [Inside the container](docs/guides/container.md): container tasks,
   container tools and project runtimes, updating mise, downloads, plugins,
   recovery, CLI versions.

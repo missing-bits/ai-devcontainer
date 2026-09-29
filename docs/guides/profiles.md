@@ -68,6 +68,26 @@ existing container: the Dev Containers CLI starts it with `up
 "Rebuild Container" reads the files in `.local/<name>/` and does not read
 `profile.env`, so a `profile.env` change needs both, in that order.
 
+## Logging in to the agents
+
+`claude` and `codex` log in through a browser that returns to a callback
+server inside the container: Codex on `localhost:1455`, Claude Code on a
+random port. The browser reaches it only through VS Code's port forwarding,
+so keep VS Code's `remote.autoForwardPortsSource` at `process`, its
+default. The `output` and `hybrid` modes detect ports only from terminal
+output, and Claude Code never prints its callback port there, so its login
+ends in `ERR_CONNECTION_REFUSED` (verified 2026-09-29).
+
+Without the forward, both still log in:
+
+- Claude Code prints a login address in the terminal whose page shows a
+  code; paste it into the terminal.
+- Codex: `codex login --device-auth` logs in with a code, no callback.
+
+`network_mode: host` is no fix on Docker Desktop: without its host
+networking setting, the container shares the Docker VM's network, not the
+one of WSL or Windows.
+
 ## Git identity and SSH
 
 - **Identity.** Set `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`,
