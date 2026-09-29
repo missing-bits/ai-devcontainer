@@ -229,8 +229,9 @@ daemon|proxy` and `remote-control` (*verified*, 0.157.1 source and spike
 `-i`/`--image` before a positional argument is refused ("write
 `--image=<file>`"), because it swallows one or more following words and
 the launcher could no longer tell which token is the command. The tables
-in `codex-cli.sh` are those verified for 0.157; there is no version
-guard, and a newer Codex is the accepted risk the spec states.
+in `codex-cli.sh` are those verified for 0.158 (re-checked 2026-09-29);
+there is no version guard, and a newer Codex is the accepted risk the spec
+states.
 
 ### 3.7 Policy keys
 
@@ -398,8 +399,10 @@ Report and retry; no custom transactions.
   start fields skip their updates offline without a failure of their own;
   a failed self-update is the step `mise`. Plugin
   updates follow each CLI's own failure behaviour; no retry, no rollback.
-- `profile.env` edited while running: `profile:code` regenerates the files;
-  the change applies at the next "Rebuild Container".
+- `profile.env` edited while running: `profile:code` regenerates the files
+  and starts the existing container unchanged (`up --no-recreate`,
+  *verified* 2026-09-29); the change applies at the next "Rebuild
+  Container".
 - `profile:remove` interrupted: a rerun removes what remains.
 
 ## 7. Verification

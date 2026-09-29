@@ -6,7 +6,7 @@
 # so no project configuration loads and no task auto-install runs.
 #
 # Both agent CLIs default to their latest version. The codex launcher's
-# tables are verified for Codex 0.157 (.devcontainer/lib/codex-cli.sh); a
+# tables are verified for Codex 0.158 (.devcontainer/lib/codex-cli.sh); a
 # newer Codex is an accepted risk, and pinning an older one is your choice.
 [tools]
 "aqua:anthropics/claude-code" = "latest"

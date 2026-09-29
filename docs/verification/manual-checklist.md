@@ -128,12 +128,12 @@ start keeps the existing tools config copy, so it needs `aidc:sync` or
 `aidc:update` (TD §3.9). Corresponds to
 probe P7.2, which was not run (needs VS Code driving a running profile).
 
-A `profile.env` edit is settled by the code, not by this item: "Rebuild
-Container" reads the generated `.local/<p>/` files and never re-reads
-`profile.env`, so the edit needs `profile:code <p>` first. What remains to
-check is whether `profile:code` alone applies the edit to an already running
-container, or whether "Rebuild Container" must follow it; the integration
-suite stubs `devcontainer`, so it cannot tell.
+A `profile.env` edit is settled, not by this item: "Rebuild Container"
+reads the generated `.local/<p>/` files and never re-reads `profile.env`,
+so the edit needs `profile:code <p>` first; and `profile:code` alone never
+applies it to an existing container, since the Dev Containers CLI runs
+`docker compose up -d --no-recreate` (developer run, 2026-09-29: the old
+container was restarted, not recreated). "Rebuild Container" must follow.
 
 ## 11. Concurrent use of one Claude and one Codex state profile from two containers
 

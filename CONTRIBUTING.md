@@ -39,7 +39,7 @@ when behaviour changes.
 ## After a Codex update
 
 The `codex` launcher recognises Codex commands and options through tables in
-`.devcontainer/lib/codex-cli.sh`, verified against Codex 0.157.1. There is no
+`.devcontainer/lib/codex-cli.sh`, verified against Codex 0.158.0. There is no
 runtime version check. When Codex moves to a newer minor version, compare
 the tables with that version's `codex --help`, `codex resume --help`,
 `codex fork --help` and `codex app-server --help`, and update them and their

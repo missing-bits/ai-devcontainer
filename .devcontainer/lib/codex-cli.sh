@@ -2,7 +2,7 @@
 # Codex CLI launcher support. Sets no shell options.
 # shellcheck disable=SC2034
 
-# Every table below matches Codex 0.157.1's `--help` output (`codex --help`,
+# Every table below matches Codex 0.158.0's `--help` output (`codex --help`,
 # `codex resume --help`, `codex fork --help`, `codex app-server --help`).
 # Re-verify them when `.devcontainer/mise.toml` moves `aqua:openai/codex` to
 # a materially newer minor version; there is no runtime version guard, so a

@@ -108,6 +108,6 @@ through `aidc:sync` or `aidc:update`. Pin a version in
 
 **After an `aidc:update` that moves Codex to a newer minor version,** check
 the `codex` launcher before relying on it. It recognises Codex commands
-through tables verified against Codex 0.157.1, with no runtime version
+through tables verified against Codex 0.158.0, with no runtime version
 check; a newer Codex can add a command the tables miss. See
 [CONTRIBUTING.md](../../CONTRIBUTING.md#after-a-codex-update).

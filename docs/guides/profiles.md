@@ -58,15 +58,15 @@ Values are taken literally: quotes stay as characters, and only whole-line
 
 | You changed | Do this |
 | --- | --- |
-| `profile.env` | run `mise run profile:code <name>` again; it regenerates `.local/<name>/` |
+| `profile.env` | run `mise run profile:code <name>` again, then VS Code: "Rebuild Container" |
 | the workspace image (`.devcontainer/Dockerfile`) | VS Code: "Rebuild Container" |
 | `.devcontainer/mise.toml` | `aidc:sync` inside the container; see [Inside the container](container.md) |
 
+`profile:code` regenerates `.local/<name>/` but never recreates an
+existing container: the Dev Containers CLI starts it with `up
+--no-recreate`, so a running session survives (verified 2026-09-29).
 "Rebuild Container" reads the files in `.local/<name>/` and does not read
-`profile.env`, so on its own it keeps the old values. Whether
-`profile:code` alone applies a `profile.env` change to an already running
-container is not verified yet (manual checklist, item 10); if a change does
-not show, use "Rebuild Container" after `profile:code`.
+`profile.env`, so a `profile.env` change needs both, in that order.
 
 ## Git identity and SSH
 
