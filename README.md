@@ -7,14 +7,17 @@ Each named environment profile gets its own container, checkouts and
 container tools. Agent logins, settings, plugins and shell history live in
 state profiles that survive rebuilds and can be shared between environment
 profiles. VS Code is the only entry point: you work in its terminal inside
-the container.
+the container. By default the container keeps running after VS Code closes,
+and Claude Code and Codex keep working on their tasks in the background.
 
 ## Requirements
 
 - A Linux or WSL2 host (macOS is not supported) with Docker and the Compose
   plugin.
 - [mise](https://mise.jdx.dev/) 2026.9.15 or newer.
-- VS Code with the Dev Containers extension, and `code` on `PATH`.
+- VS Code with the Dev Containers extension, `code` on `PATH`, and
+  `remote.autoForwardPortsSource` at its default, `process`, which agent
+  logins need.
 - A running host `ssh-agent`; VS Code forwards it into the container.
 
 Details, including an `ssh-agent` setup for WSL, are in
