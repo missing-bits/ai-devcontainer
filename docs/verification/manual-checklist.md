@@ -119,10 +119,19 @@ matrix, AC10); this item confirms VS Code itself still attaches.
 Spec open verification item; TD §8. No automated test exists, and none of
 Tasks 1–7 implemented `profile:rebuild` — it stays a possible future host
 task, not a current one. Decide by exercising item 6 above across several
-kinds of change (a `profile.env` edit, a `.devcontainer/mise.toml` change,
-an image change) and confirming "Rebuild Container" alone always picks
-them up. Corresponds to probe P7.2, which was not run (needs VS Code
-driving a running profile).
+kinds of change (an image change, a change to the shared
+`.devcontainer/compose.yaml`) and confirming "Rebuild Container" alone always
+picks them up. A `.devcontainer/mise.toml` change is out of scope here: a
+start keeps the existing tools config copy, so it needs `aidc:sync` or
+`aidc:update` (TD §3.9). Corresponds to
+probe P7.2, which was not run (needs VS Code driving a running profile).
+
+A `profile.env` edit is settled by the code, not by this item: "Rebuild
+Container" reads the generated `.local/<p>/` files and never re-reads
+`profile.env`, so the edit needs `profile:code <p>` first. What remains to
+check is whether `profile:code` alone applies the edit to an already running
+container, or whether "Rebuild Container" must follow it; the integration
+suite stubs `devcontainer`, so it cannot tell.
 
 ## 11. Concurrent use of one Claude and one Codex state profile from two containers
 
