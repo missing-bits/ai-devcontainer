@@ -5,7 +5,7 @@ status: approved
 branch: feature/ai-devcontainer-v2
 technical-design: ../technical-designs/ai-devcontainer-v2-technical-design.md
 architect: LGTM
-integrity: 2026-09-28 (sha: 5ee7282; with: ../technical-designs/ai-devcontainer-v2-technical-design.md@69c59be)
+integrity: 2026-09-29 (sha: c3a282b; with: ../technical-designs/ai-devcontainer-v2-technical-design.md@f400ac7)
 ---
 
 # AI Devcontainer v2 Design
