@@ -2,7 +2,8 @@
 # Plugin initialization: `aidc-plugins init claude|codex` (TD §3.5). Once per
 # agent state profile, under its state lock, adds the catalog marketplaces and
 # installs the default plugins the CLI does not list, then writes the plugin
-# marker. Only native CLI commands, run through the launchers; a listed
+# marker. Only native CLI commands, of the CLI the tools config copy
+# declares (`mise which` under the isolation); a listed
 # plugin, disabled ones included, is never installed again. Failures are
 # logged and leave the marker absent, so the next start retries (TD §6).
 #
@@ -34,7 +35,12 @@ codex)
 	;;
 *) usage ;;
 esac
-cli="$AIDC_BIN/../launchers/$agent"
+# shellcheck source=../lib/mise-isolation.sh
+source "$AIDC_LIB/mise-isolation.sh"
+cli="$(
+	aidc::mise_isolate || exit 1
+	mise which "$agent"
+)" && [ -n "$cli" ] || aidc::die "$agent is not installed in the tools config copy"
 marker="$state/.aidc/plugins-initialized"
 
 [ ! -e "$marker" ] || exit 0

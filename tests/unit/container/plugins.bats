@@ -1,17 +1,18 @@
 #!/usr/bin/env bats
-# `aidc-plugins init <agent>` against a copied tree whose launchers are stub
-# CLIs. The stubs serve their listings from files under $STUB_DIR, seeded
+# `aidc-plugins init <agent>` against a copied tree and stub CLIs, which the
+# stub `mise` resolves with `which`. The stubs serve their listings from files under $STUB_DIR, seeded
 # empty or from the recorded fixtures, log every call to $STUB_DIR/calls,
 # and add what a successful `add` or `install` would list, so a retry sees
 # the earlier run's work. STUB_FAIL names one argument whose command fails.
 load ../../helpers/common
+load ../../helpers/stub-mise
 bats_require_minimum_version 1.5.0
 
 FIXTURES="$AIDC_SOURCE_ROOT/tests/fixtures/plugins"
 
 setup() {
   local tree="$BATS_TEST_TMPDIR/tree"
-  mkdir -p "$tree/launchers" "$BATS_TEST_TMPDIR/devcontainer" \
+  mkdir -p "$tree" "$BATS_TEST_TMPDIR/cli" "$BATS_TEST_TMPDIR/devcontainer" \
     "$BATS_TEST_TMPDIR/claude-state" "$BATS_TEST_TMPDIR/codex-state"
   cp -R "$AIDC_SOURCE_ROOT/.devcontainer/bin" "$AIDC_SOURCE_ROOT/.devcontainer/lib" "$tree/"
   cp "$AIDC_SOURCE_ROOT/.devcontainer/plugins.json" "$BATS_TEST_TMPDIR/devcontainer/"
@@ -27,7 +28,7 @@ setup() {
   printf '{"installed": [], "available": []}\n' >"$STUB_DIR/codex-plugins.json"
   : >"$STUB_DIR/calls"
 
-  cat >"$tree/launchers/claude" <<'EOF'
+  cat >"$BATS_TEST_TMPDIR/cli/claude" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'claude %s\n' "$*" >>"$STUB_DIR/calls"
@@ -42,7 +43,7 @@ case "$*" in
 *) exit 2 ;;
 esac
 EOF
-  cat >"$tree/launchers/codex" <<'EOF'
+  cat >"$BATS_TEST_TMPDIR/cli/codex" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 printf 'codex %s\n' "$*" >>"$STUB_DIR/calls"
@@ -58,7 +59,10 @@ case "$*" in
 *) exit 2 ;;
 esac
 EOF
-  chmod +x "$tree/launchers/claude" "$tree/launchers/codex"
+  chmod +x "$BATS_TEST_TMPDIR/cli/claude" "$BATS_TEST_TMPDIR/cli/codex"
+  stub_mise
+  export STUB_MISE_BIN_claude="$BATS_TEST_TMPDIR/cli/claude"
+  export STUB_MISE_BIN_codex="$BATS_TEST_TMPDIR/cli/codex"
 }
 
 teardown() {

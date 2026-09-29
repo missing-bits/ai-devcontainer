@@ -22,21 +22,19 @@ runtime, not `claude` or `codex`); run `mise install` if prompted, then
 `mise ls` or exercise the tool it declares.
 
 **Expected:** mise activates for that directory and installs/exposes the
-project's own runtime, without changing which `claude`/`codex` the
-launchers resolve.
+project's own runtime.
 
-## 2. `command -v claude codex` shows the launchers first, also inside a project
+## 2. `claude` and `codex` resolve from the container tools, and a project may pin its own
 
-**Command:** `command -v claude codex` from the home directory, then again
-after `cd` into a project whose own `mise.toml` declares a `claude` or
-`codex` tool. Also run `zsh -lic 'command -v claude codex'`: a login,
-interactive shell whose single `-c` command draws no prompt and changes no
-directory, so it never fires the `precmd`/`chpwd` hooks that otherwise
-restore the launcher directory's place on PATH.
+**Command:** `claude --version; codex --version` from the home directory,
+then again after `cd` into a project whose own `mise.toml` pins another
+`claude` or `codex` version, and once more as `zsh -lc 'claude --version'`,
+a login shell without an interactive prompt.
 
-**Expected:** both resolve to `/usr/local/lib/aidc/launchers/claude` and
-`/usr/local/lib/aidc/launchers/codex` in both locations, including the
-`zsh -lic` run.
+**Expected:** at home, and in the login shell, both report the container
+tools' versions; inside the project, the pinned version wins (mise asks to
+install it when it is missing). Since 2026-09-29 the image has no
+launchers: the project may choose the agent's version.
 
 ## 3. History persists across a rebuild and two shells share it
 

@@ -81,11 +81,10 @@ RUN tmp="$(mktemp -d)" \
   && chmod -R a+rX,go-w /usr/share/oh-my-zsh \
   && rm -rf "${tmp}"
 
-# Container scripts, agent CLI launchers, policy files and shell integration,
+# Container scripts, policy files and shell integration,
 # owned by root (TD §3.6, §3.7, §3.9).
 COPY bin/ /usr/local/lib/aidc/bin/
 COPY lib/ /usr/local/lib/aidc/lib/
-COPY launchers/ /usr/local/lib/aidc/launchers/
 COPY policy/claude-managed-settings.json /etc/claude-code/managed-settings.json
 COPY policy/codex-requirements.toml /etc/codex/requirements.toml
 COPY policy/codex-config.toml /etc/codex/config.toml
@@ -98,11 +97,12 @@ RUN chmod -R a+rX,go-w /usr/local/lib/aidc /etc/claude-code /etc/codex \
   && chmod 0644 /etc/claude-code/managed-settings.json /etc/codex/requirements.toml \
     /etc/codex/config.toml /etc/zsh/zshrc /etc/profile.d/aidc-path.sh
 
-# The launcher directory leads PATH, so nothing installed under
-# /opt/aidc/tools can shadow an agent CLI launcher (TD §3.6). Debian's
-# /etc/profile resets PATH for login shells; /etc/profile.d/aidc-path.sh and
-# the zshrc hooks restore the order.
-ENV PATH=/usr/local/lib/aidc/launchers:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+# The mise shims lead PATH, so `claude`, `codex` and the other container
+# tools resolve in shells without mise activation too, and a project's own
+# mise.toml picks their versions there as it does in an activated shell.
+# Debian's /etc/profile resets PATH for login shells;
+# /etc/profile.d/aidc-path.sh restores the shims.
+ENV PATH=/opt/aidc/tools/mise/shims:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 # The vscode user carries the host UID and GID (AC2). Declared after the
 # layers above, so a different UID or GID reuses them. Every mount point is

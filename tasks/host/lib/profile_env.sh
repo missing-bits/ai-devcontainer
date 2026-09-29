@@ -48,8 +48,8 @@ aidc::load_profile_env() {
   *) aidc::die "$file: DOCKER_SOCKET must be 'on' or 'off'" ;;
   esac
 
-  AIDC_START_UPDATE_MISE="${val[START_UPDATE_MISE]:-off}"
-  AIDC_START_UPGRADE_TOOLS="${val[START_UPGRADE_TOOLS]:-off}"
+  AIDC_START_UPDATE_MISE="${val[START_UPDATE_MISE]:-on}"
+  AIDC_START_UPGRADE_TOOLS="${val[START_UPGRADE_TOOLS]:-on}"
   case "$AIDC_START_UPDATE_MISE" in
   on | off) ;;
   *) aidc::die "$file: START_UPDATE_MISE must be 'on' or 'off'" ;;
@@ -59,7 +59,7 @@ aidc::load_profile_env() {
   *) aidc::die "$file: START_UPGRADE_TOOLS must be 'on' or 'off'" ;;
   esac
 
-  AIDC_KEEP_RUNNING="${val[KEEP_RUNNING]:-off}"
+  AIDC_KEEP_RUNNING="${val[KEEP_RUNNING]:-on}"
   case "$AIDC_KEEP_RUNNING" in
   on | off) ;;
   *) aidc::die "$file: KEEP_RUNNING must be 'on' or 'off'" ;;

@@ -1,6 +1,5 @@
 {
   "env": {
-    "DISABLE_UPDATES": "1",
     "CLAUDE_CODE_PLUGIN_PREFER_HTTPS": "1"
   }
 }

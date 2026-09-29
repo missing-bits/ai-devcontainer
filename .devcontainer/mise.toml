@@ -5,9 +5,9 @@
 #   MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>
 # so no project configuration loads and no task auto-install runs.
 #
-# Both agent CLIs default to their latest version. The codex launcher's
-# tables are verified for Codex 0.158 (.devcontainer/lib/codex-cli.sh); a
-# newer Codex is an accepted risk, and pinning an older one is your choice.
+# Both agent CLIs default to their latest version and move with
+# `aidc:update` (or START_UPGRADE_TOOLS); installed through mise, neither
+# updates itself. Pinning an older version is your choice.
 [tools]
 "aqua:anthropics/claude-code" = "latest"
 "aqua:openai/codex" = "latest"

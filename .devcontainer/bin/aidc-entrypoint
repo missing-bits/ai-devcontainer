@@ -2,7 +2,8 @@
 # Container entrypoint: the start sequence of TD §3.4. Decides the start
 # policy of AIDC_START_UPDATE_MISE and AIDC_START_UPGRADE_TOOLS (container
 # sudo/mise/trust spec, D3), runs the tools step, then plugin
-# initialization for each agent whose launcher resolves its CLI, records
+# initialization for each agent whose CLI the tools config copy resolves,
+# records
 # the result in the init result marker, and execs the keep-alive
 # command whatever happened, so VS Code can attach. Every step is guarded
 # rather than left to errexit, so every path reaches the final exec.
@@ -26,8 +27,8 @@ write_marker() {
 	printf '%s\n' "$1" >"$marker" || printf 'aidc: cannot write %s\n' "$marker" >&2
 }
 
-# resolves <agent>: whether the agent's launcher would find its CLI, by the
-# launcher's own resolution (`mise which` under the isolation, from /).
+# resolves <agent>: whether the tools config copy resolves the agent's CLI
+# (`mise which` under the isolation, from /).
 resolves() {
 	local exe
 	exe="$(

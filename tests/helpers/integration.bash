@@ -131,9 +131,14 @@ aidc_it_set_env() {
   done
 }
 
+# aidc_it_new_profile <profile>: profile:new, then both start fields off,
+# since the example turns them on: a start then neither updates mise nor
+# upgrades the tools, and each test sees the tools it declares. Tests of the
+# start fields (sudo_mise_trust.bats, S5) turn them on themselves.
 aidc_it_new_profile() {
   run bash "$AIDC_ROOT/tasks/host/profile/new" "$1"
   assert_success
+  aidc_it_set_env "$1" START_UPDATE_MISE=off START_UPGRADE_TOOLS=off
 }
 
 # aidc_it_code <profile>: runs profile:code with devcontainer and code

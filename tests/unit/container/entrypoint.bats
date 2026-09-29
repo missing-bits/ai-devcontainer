@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 # `aidc-entrypoint` against a copied tree whose `aidc-tools` and
-# `aidc-plugins` are stubs; the launchers' resolution is the stub `mise`'s
+# `aidc-plugins` are stubs; the CLIs' resolution is the stub `mise`'s
 # `which`, answered from STUB_MISE_BIN_<agent>.
 load ../../helpers/common
 load ../../helpers/stub-mise
@@ -170,7 +170,7 @@ run_entrypoint() {
   assert_marker failed "tools plugins-codex"
 }
 
-@test "entrypoint skips plugin init for an agent whose launcher does not resolve" {
+@test "entrypoint skips plugin init for an agent whose CLI does not resolve" {
   unset STUB_MISE_BIN_codex
   run_entrypoint
   assert_marker failed plugins-codex

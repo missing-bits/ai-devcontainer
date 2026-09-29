@@ -47,7 +47,7 @@ _Avoid_: shared cache, tools cache
 
 **Tools config copy**:
 The copy of `.devcontainer/mise.toml` in the profile tools volume, with the
-`mise.lock` mise writes beside it; launchers and container tasks read it.
+`mise.lock` mise writes beside it; mise and the container tasks read it.
 _Avoid_: desired toolset, manifest
 
 **Container tools**:

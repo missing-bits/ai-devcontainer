@@ -12,7 +12,6 @@ services:
     entrypoint: ["/usr/local/lib/aidc/bin/aidc-entrypoint"]
     command: ["sleep", "infinity"]
     environment:
-      DISABLE_UPDATES: "1"
       MISE_DATA_DIR: /opt/aidc/tools/mise
       MISE_GLOBAL_CONFIG_FILE: /opt/aidc/tools/mise.toml
       # Downloads go to the volume every profile shares; the rest of mise's
@@ -22,7 +21,7 @@ services:
       MISE_ALWAYS_KEEP_DOWNLOAD: "1"
       MISE_CACHE_DIR: /opt/aidc/tools/cache
       # The container mounts only its own profile project space here; the
-      # mise isolation removes this for container tasks and launchers.
+      # mise isolation removes this for container tasks and the entrypoint.
       MISE_TRUSTED_CONFIG_PATHS: /workspaces
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
       CODEX_HOME: /home/vscode/.codex

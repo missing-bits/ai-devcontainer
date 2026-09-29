@@ -1,7 +1,7 @@
 #!/usr/bin/env bats
-# Docker tests for AC6 (TD §3.7 policy keys). One profile, started once and
-# reused; bats runs a file's tests in source order and later tests build on
-# state the earlier ones leave (a user override file, a completed exec run).
+# Docker tests for the policy keys (TD §3.7): the sandbox defaults hold, and
+# the agent CLIs' updates and Codex's managed daemon follow each CLI's own
+# defaults. One profile, started once and reused.
 load ../helpers/integration
 bats_require_minimum_version 1.5.0
 
@@ -31,49 +31,24 @@ teardown_file() {
   aidc_it_cleanup
 }
 
-@test "claude update refuses" {
-  # Verified 2026-09-28: claude update exits 0 and reports the managed
-  # refusal message rather than performing the update.
+@test "claude update defers to mise, not to a policy" {
+  # Installed through mise, Claude Code refuses to update itself (probe
+  # 2026-09-29); no managed setting blocks it any more.
   run aidc_it_exec "$P" claude update
-  assert_success
-  assert_output_contains "Updates are disabled by your administrator"
+  assert_output_contains "managed by a package manager"
+  refute_output_contains "disabled by your administrator"
 }
 
-@test "a user settings.json setting DISABLE_UPDATES=0 does not re-enable Claude's update" {
-  aidc_it_exec "$P" sh -c 'echo "{\"env\":{\"DISABLE_UPDATES\":\"0\"}}" > /home/vscode/.claude/settings.json'
-  run aidc_it_exec "$P" claude update
+@test "Codex starts its managed daemon" {
+  run aidc_it_exec "$P" codex app-server daemon start
   assert_success
-  assert_output_contains "Updates are disabled by your administrator"
-}
-
-@test "a user config.toml cannot re-enable the Codex update check" {
-  aidc_it_exec "$P" sh -c 'printf "check_for_update_on_startup = true\n" > /home/vscode/.codex/config.toml'
-  # codex doctor's own exit status reflects unrelated environment checks
-  # (e.g. no login in this state profile), not this override, so only the
-  # startup warning line is asserted.
-  run aidc_it_exec "$P" codex doctor
-  assert_output_contains "Configured value for \`check_for_update_on_startup\` is overridden by the required value false from /etc/codex/requirements.toml."
-}
-
-@test "after codex runs, no app-server daemon process exists and CODEX_HOME/packages is absent" {
-  aidc_it_exec "$P" sh -c 'codex exec --skip-git-repo-check "hi" </dev/null >/tmp/codex-exec.log 2>&1' || true
-
-  # Guard against a vacuous pass: without a login, codex exec fails on the
-  # auth check, but the P6.3 probe found it prints its sandbox/approval
-  # header first (config load, sandbox setup), so a "sandbox:" line in the
-  # log is evidence the run reached past plain CLI startup rather than
-  # failing on, say, an argument-parse error before anything meaningful ran.
-  # If a login-free path can reach app-server without ever printing that
-  # header, this check would not catch it; that gap belongs to the manual
-  # checklist (TD §7 item 4), which runs with a real login.
-  run aidc_it_exec "$P" cat /tmp/codex-exec.log
+  run aidc_it_exec "$P" codex app-server daemon version
   assert_success
-  assert_output_contains "sandbox:"
-
-  run aidc_it_exec "$P" pgrep -f app-server
-  assert_failure
-  run aidc_it_exec "$P" test -d /home/vscode/.codex/packages
-  assert_failure
+  assert_output_contains '"status":"running"'
+  run aidc_it_exec "$P" test -d /home/vscode/.codex/packages/app-server-daemon
+  assert_success
+  run aidc_it_exec "$P" codex app-server daemon stop
+  assert_success
 }
 
 @test "Codex reports danger-full-access and on-request as effective" {

@@ -36,15 +36,6 @@ lists what needs VS Code or a real agent login; no task runs it.
 maps each acceptance criterion to its test or checklist item. Update both
 when behaviour changes.
 
-## After a Codex update
-
-The `codex` launcher recognises Codex commands and options through tables in
-`.devcontainer/lib/codex-cli.sh`, verified against Codex 0.158.0. There is no
-runtime version check. When Codex moves to a newer minor version, compare
-the tables with that version's `codex --help`, `codex resume --help`,
-`codex fork --help` and `codex app-server --help`, and update them and their
-tests.
-
 ## Commits
 
 One-line [Conventional Commits](https://www.conventionalcommits.org/)

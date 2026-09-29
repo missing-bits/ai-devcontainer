@@ -37,10 +37,11 @@ Project runtimes belong in the project's own `mise.toml`, inside its
 checkout; run `mise install` there. mise trusts every project under
 `/workspaces` without asking, so a project's configuration, its hooks and
 tasks included, takes effect as soon as mise reads it: clone only what you
-would trust ([Security](security.md)). A project's `mise.toml` never
-changes which agent CLI runs: the `claude` and
-`codex` launchers come first on `PATH` and resolve the CLI from the
-container tools.
+would trust ([Security](security.md)). The agent CLIs are container tools
+like the others, so a project's `mise.toml` may pin its own `claude` or
+`codex` version, and inside that project it wins. The mise shims lead
+`PATH`, so the tools resolve in shells without mise activation too, such as
+an agent's commands.
 
 ## Updating mise
 
@@ -101,13 +102,12 @@ container: VS Code still attaches. To recover:
 
 ## CLI versions
 
-`claude` and `codex` install at whatever `latest` resolves to when the tools
-volume is first populated. Their self-update is off, so they move only
-through `aidc:sync` or `aidc:update`. Pin a version in
-`.devcontainer/mise.toml` if you need a fixed one.
-
-**After an `aidc:update` that moves Codex to a newer minor version,** check
-the `codex` launcher before relying on it. It recognises Codex commands
-through tables verified against Codex 0.158.0, with no runtime version
-check; a newer Codex can add a command the tables miss. See
-[CONTRIBUTING.md](../../CONTRIBUTING.md#after-a-codex-update).
+`claude` and `codex` install at whatever `latest` resolves to, and move
+with `aidc:update`, which `START_UPGRADE_TOOLS` (on by default) runs at every
+online start. Installed through mise, neither updates itself: `claude
+update` and `codex update` defer to the package manager (verified
+2026-09-29). Nothing blocks their other updates: Claude Code updates its
+plugins on its own, and Codex's managed daemon installs and updates its own
+copy under `~/.codex/packages/`, so the daemon can run a newer version than
+the CLI. Pin a version in `.devcontainer/mise.toml` if you need a fixed
+one.

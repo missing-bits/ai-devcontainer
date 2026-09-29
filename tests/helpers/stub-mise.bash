@@ -44,7 +44,7 @@ STUB
 }
 
 # stub_mise: prepends the stub `mise` to PATH and exports STUB_DIR, so a
-# launcher under test records its resolution calls into $BATS_TEST_TMPDIR.
+# script under test records its resolution calls into $BATS_TEST_TMPDIR.
 stub_mise() {
   local dir
   dir="$(stub_mise_bin_dir)"

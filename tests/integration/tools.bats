@@ -58,14 +58,14 @@ mise_version() {
   [[ "$output" != *"Z Shell configuration function for new users"* ]]
 }
 
-@test "an interactive zsh loads the pinned oh-my-zsh theme and still resolves the launcher" {
+@test "an interactive zsh loads the pinned oh-my-zsh theme and resolves claude from the tools volume" {
   run aidc_it_exec "$C" zsh -ic 'echo $ZSH_THEME; command -v claude'
   assert_success
   [[ "${lines[0]}" == "robbyrussell" ]]
-  [[ "${lines[1]}" == "/usr/local/lib/aidc/launchers/claude" ]]
+  [[ "${lines[1]}" == /opt/aidc/tools/mise/* ]]
 }
 
-@test "claude --version and codex --version report the tools volume's CLIs, also from inside a project declaring other versions" {
+@test "claude --version and codex --version report the tools volume's CLIs without mise activation, and a project may pick its own versions" {
   local claude_ver codex_ver
   claude_ver="$(mise_version 'aqua:anthropics/claude-code')"
   codex_ver="$(mise_version 'aqua:openai/codex')"
@@ -83,12 +83,16 @@ mise_version() {
   printf '[tools]\n"aqua:anthropics/claude-code" = "2.0.0"\n"aqua:openai/codex" = "0.100.0"\n' \
     >"$AIDC_ROOT/projects/$C/proj/mise.toml"
 
-  run docker exec --workdir "/workspaces/$C/proj" "$(aidc_it_container "$C")" claude --version
+  # The project's mise.toml wins inside it, through the shims as through
+  # activation (developer decision 2026-09-29).
+  run --separate-stderr docker exec --workdir "/workspaces/$C/proj" "$(aidc_it_container "$C")" \
+    mise current aqua:anthropics/claude-code
   assert_success
-  assert_output_contains "$claude_ver"
-  run docker exec --workdir "/workspaces/$C/proj" "$(aidc_it_container "$C")" codex --version
+  [ "$output" = 2.0.0 ]
+  run --separate-stderr docker exec --workdir "/workspaces/$C/proj" "$(aidc_it_container "$C")" \
+    mise current aqua:openai/codex
   assert_success
-  assert_output_contains "$codex_ver"
+  [ "$output" = 0.100.0 ]
 }
 
 @test "aidc:sync installs a tool added to .devcontainer/mise.toml" {

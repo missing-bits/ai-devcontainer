@@ -13,17 +13,16 @@ toml_keys() {
   grep -v -E '^[[:space:]]*(#|$)' "$1" | sort
 }
 
-@test "Claude managed settings hold exactly the two env keys" {
+@test "Claude managed settings hold only the HTTPS marketplace key" {
   run jq -c -S . "$D/policy/claude-managed-settings.json"
   assert_success
-  [ "$output" = '{"env":{"CLAUDE_CODE_PLUGIN_PREFER_HTTPS":"1","DISABLE_UPDATES":"1"}}' ]
+  [ "$output" = '{"env":{"CLAUDE_CODE_PLUGIN_PREFER_HTTPS":"1"}}' ]
 }
 
-@test "Codex requirements disable the update check and store credentials in a file" {
+@test "Codex requirements store credentials in a file and leave updates to Codex" {
   run toml_keys "$D/policy/codex-requirements.toml"
   assert_success
-  [ "$output" = "$(printf '%s\n' 'check_for_update_on_startup = false' 'cli_auth_credentials_store = "file"')" ]
-  refute_output_contains allowed_sandbox_modes
+  [ "$output" = 'cli_auth_credentials_store = "file"' ]
 }
 
 @test "Codex system config sets the sandbox and approval defaults" {
@@ -32,13 +31,13 @@ toml_keys() {
   [ "$output" = "$(printf '%s\n' 'approval_policy = "on-request"' 'sandbox_mode = "danger-full-access"')" ]
 }
 
-@test "the shared Compose file fixes image, init, user, updates off and the read-only bind" {
+@test "the shared Compose file fixes image, init, user and the read-only bind, and blocks no update" {
   local f="$D/compose.yaml"
   grep -q -x '    image: aidc-workspace:local' "$f"
   grep -q -x '    init: true' "$f"
   grep -q -x '    user: vscode' "$f"
-  grep -q -x '      DISABLE_UPDATES: "1"' "$f"
   grep -q -x '      - .:/opt/aidc/devcontainer:ro' "$f"
+  ! grep -q DISABLE_UPDATES "$f"
 }
 
 @test "the shared Compose file sets the tool and state environment of TD SS3.2" {

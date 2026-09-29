@@ -54,15 +54,15 @@ write_env() { printf '%s\n' "$@" >"$AIDC_ROOT/profiles/dev/profile.env"; }
   assert_failure
 }
 
-@test "the start fields default to off and accept on" {
+@test "the start fields default to on and accept off" {
   write_env ""
-  aidc::load_profile_env dev
-  [ "$AIDC_START_UPDATE_MISE" = off ]
-  [ "$AIDC_START_UPGRADE_TOOLS" = off ]
-  write_env "START_UPDATE_MISE=on" "START_UPGRADE_TOOLS=on"
   aidc::load_profile_env dev
   [ "$AIDC_START_UPDATE_MISE" = on ]
   [ "$AIDC_START_UPGRADE_TOOLS" = on ]
+  write_env "START_UPDATE_MISE=off" "START_UPGRADE_TOOLS=off"
+  aidc::load_profile_env dev
+  [ "$AIDC_START_UPDATE_MISE" = off ]
+  [ "$AIDC_START_UPGRADE_TOOLS" = off ]
 }
 
 @test "a start field other than on or off is rejected" {
@@ -75,13 +75,13 @@ write_env() { printf '%s\n' "$@" >"$AIDC_ROOT/profiles/dev/profile.env"; }
   done
 }
 
-@test "KEEP_RUNNING defaults to off, accepts on, and rejects anything else" {
+@test "KEEP_RUNNING defaults to on, accepts off, and rejects anything else" {
   write_env ""
   aidc::load_profile_env dev
-  [ "$AIDC_KEEP_RUNNING" = off ]
-  write_env "KEEP_RUNNING=on"
-  aidc::load_profile_env dev
   [ "$AIDC_KEEP_RUNNING" = on ]
+  write_env "KEEP_RUNNING=off"
+  aidc::load_profile_env dev
+  [ "$AIDC_KEEP_RUNNING" = off ]
   write_env "KEEP_RUNNING=yes"
   run aidc::load_profile_env dev
   assert_failure

@@ -39,9 +39,11 @@ profile installs next, subject to the checksums mise verifies. Two
 profiles installing the same archive at once can race; a retry settles it
 ([Inside the container](container.md#downloads)).
 
-With `START_UPDATE_MISE` or `START_UPGRADE_TOOLS` on, an online start runs
-mise and tool versions no test has seen; a newer Codex may outrun the
-`codex` launcher's tables ([Inside the container](container.md#cli-versions)).
+With `START_UPDATE_MISE` and `START_UPGRADE_TOOLS` on, the default, an
+online start runs mise and tool versions no test has seen. Codex's managed
+daemon updates itself into the agent state volume, which every profile
+naming that state profile shares
+([Inside the container](container.md#cli-versions)).
 
 ## The Docker socket
 

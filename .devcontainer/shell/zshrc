@@ -1,18 +1,13 @@
 #!/usr/bin/env zsh
 # zsh login-shell config for the aidc image: loads oh-my-zsh (pinned, no
 # self-update), re-asserts the shared history settings oh-my-zsh's own
-# history module would otherwise set, activates mise, then re-asserts the
-# launcher directory first on PATH right away and again after every prompt
-# and directory change, so a project's own mise-provided `claude` or `codex`
-# never shadows the launcher, even in a shell that never draws a prompt or
-# changes directory (e.g. `zsh -ic '...'`) (TD §3.6, §3.9).
+# history module would otherwise set, then activates mise (TD §3.6, §3.9).
 
-# AIDC_LAUNCHER_DIR and AIDC_OMZ_DIR are test seams: production sources this
-# file with neither set and gets the defaults below; a test points one at a
-# fixture directory. AIDC_OMZ_DIR, not $ZSH itself, is the seam, so a
-# developer's own interactive shell (which may already export a real $ZSH
-# from a personal oh-my-zsh install) can never leak into a test run.
-AIDC_LAUNCHER_DIR="${AIDC_LAUNCHER_DIR:-/usr/local/lib/aidc/launchers}"
+# AIDC_OMZ_DIR is a test seam: production sources this file without it and
+# gets the default below; a test points it at a fixture directory. It, not
+# $ZSH itself, is the seam, so a developer's own interactive shell (which
+# may already export a real $ZSH from a personal oh-my-zsh install) can
+# never leak into a test run.
 
 # oh-my-zsh, pinned at image build time under /usr/share/oh-my-zsh
 # (root-owned, read-only). A test environment with no oh-my-zsh installed
@@ -43,11 +38,3 @@ if command -v mise >/dev/null 2>&1; then
   eval "$(mise activate zsh)"
 fi
 
-aidc::path_first() {
-  path=("$AIDC_LAUNCHER_DIR" "${(@)path:#$AIDC_LAUNCHER_DIR}")
-}
-
-autoload -Uz add-zsh-hook
-add-zsh-hook precmd aidc::path_first
-add-zsh-hook chpwd aidc::path_first
-aidc::path_first

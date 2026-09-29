@@ -34,9 +34,9 @@ Run these from the repository root with `mise run <task>`:
 | `PROFILE_CLAUDE`, `PROFILE_CODEX` | agent state profile: logins, settings, plugins, sessions |
 | `PROFILE_SHELL` | shell history profile |
 | `DOCKER_SOCKET` | `on` or `off`; see [Security](security.md) first |
-| `START_UPDATE_MISE` | `on` or `off`: update mise at every online start |
-| `START_UPGRADE_TOOLS` | `on` or `off`: run `aidc:update` at every online start |
-| `KEEP_RUNNING` | `on` or `off`: keep the container running after VS Code closes |
+| `START_UPDATE_MISE` | `on` (default) or `off`: update mise at every online start |
+| `START_UPGRADE_TOOLS` | `on` (default) or `off`: run `aidc:update` at every online start |
+| `KEEP_RUNNING` | `on` (default) or `off`: keep the container running after VS Code closes |
 | `GIT_AUTHOR_*`, `GIT_COMMITTER_*` | Git identity inside the container |
 | `GIT_SSH_COMMAND` | SSH command Git uses; see below |
 
@@ -46,7 +46,7 @@ in two profiles while keeping Codex and shell history separate, set
 `PROFILE_CLAUDE=main` in both. A change an agent makes to shared state
 reaches every profile that shares it.
 
-The start fields default to `off`. At a start without network access they
+The start fields default to `on`. At a start without network access they
 skip their updates without marking the start failed; `START_UPGRADE_TOOLS`
 still copies `.devcontainer/mise.toml`, so a newly declared tool fails the
 start until an online start or `aidc:sync` installs it. See
@@ -71,9 +71,10 @@ existing container: the Dev Containers CLI starts it with `up
 
 ## When VS Code closes
 
-Closing the VS Code window stops the profile's container; state, tools and
-volumes stay, and the next `profile:code` starts it again. With
-`KEEP_RUNNING=on` the container keeps running instead. The field takes
+With `KEEP_RUNNING=on`, the default, the container keeps running after its
+VS Code window closes. With `off`, closing the window stops it; state,
+tools and volumes stay, and the next `profile:code` starts it again. The
+field takes
 effect after `profile:code` and "Rebuild Container": VS Code reads it from
 the container, which stores it when it is created. Stop a kept container
 with `docker stop aidc-<name>-workspace-1`, or remove it with
@@ -82,9 +83,9 @@ restarts.
 
 A kept container does not keep what ran in the window's terminal: a
 process started there ends when the window closes. Claude Code keeps its
-sessions running in its own background daemon, so a task given to `claude`
-goes on and you can return to it later. Codex runs without its daemon in
-these containers, so a `codex` session ends with the window.
+sessions running in its own background daemon, and Codex in its managed
+app-server daemon (`codex agents` lists its sessions), so a task given to
+either goes on and you can return to it later.
 
 ## Logging in to the agents
 

@@ -70,7 +70,7 @@ setup() {
 
 @test "only the start fields are in the environment when every GIT_* field is unset" {
   aidc::generate demo "$AIDC_ROOT/.local/demo"
-  [ "$(jq -c '.services.workspace.environment' "$AIDC_ROOT/.local/demo/compose.yaml")" = '{"AIDC_START_UPDATE_MISE":"off","AIDC_START_UPGRADE_TOOLS":"off"}' ]
+  [ "$(jq -c '.services.workspace.environment' "$AIDC_ROOT/.local/demo/compose.yaml")" = '{"AIDC_START_UPDATE_MISE":"on","AIDC_START_UPGRADE_TOOLS":"on"}' ]
 }
 
 @test "the start fields reach the container as AIDC_START_*" {
@@ -130,12 +130,12 @@ setup() {
   [ "$(jq -r '.dockerComposeFile[1]' "$f")" = "../compose.yaml" ]
 }
 
-@test "devcontainer.json stops the container on close unless KEEP_RUNNING=on" {
+@test "devcontainer.json keeps the container on close unless KEEP_RUNNING=off" {
   aidc::generate demo "$AIDC_ROOT/.local/demo"
-  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo/.devcontainer/devcontainer.json")" = stopCompose ]
-  printf 'KEEP_RUNNING=on\n' >"$AIDC_ROOT/profiles/demo/profile.env"
+  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo/.devcontainer/devcontainer.json")" = none ]
+  printf 'KEEP_RUNNING=off\n' >"$AIDC_ROOT/profiles/demo/profile.env"
   aidc::generate demo "$AIDC_ROOT/.local/demo2"
-  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo2/.devcontainer/devcontainer.json")" = none ]
+  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo2/.devcontainer/devcontainer.json")" = stopCompose ]
 }
 
 @test "an existing out-dir is refused and nothing is deleted" {
