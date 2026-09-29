@@ -122,7 +122,8 @@ the host's Docker socket into the container and adds its group so the
 container user can use it. With the socket on, the container is no longer
 the isolation boundary: an agent command inside it can control every
 container on the host, not just this one. Leave it `off` unless you need
-it.
+it. This opt-in is verified on Docker Engine only; Docker Desktop is
+untested.
 
 ## Git identity and known cases
 

@@ -125,13 +125,14 @@ before any file or Docker change.
   writes the marker only after full success. An interrupted run completes at
   the next start. Once the marker exists, the developer's removals and
   disables stand.
-- Plugin updates follow each CLI's default behaviour, for Claude and Codex
-  alike: nothing forces them on or off. If a CLI updates its plugins
-  automatically, that is fine; if it does not, native commands update them by
-  hand. Codex refreshes its marketplaces at session start (*verified*, probe
-  2026-09-28); whether Claude's plugin auto-update runs under the CLI
-  self-update policy is left to Claude. Other plugin versions call for a
-  separate state profile; a new default reaches an existing one only by hand.
+- aidc adds no plugin-update mechanism; plugin updates follow each CLI's own
+  behaviour under the CLI self-update policy, which may also stop Claude's
+  plugin auto-update (accepted). Codex refreshes its marketplaces at session
+  start (*verified*, probe 2026-09-28). Other plugin versions call for a
+  separate state profile; a new default reaches an existing one only by
+  native CLI commands, or by deleting the agent's plugin marker and
+  restarting, which installs the missing defaults and never re-enables a
+  listed plugin (TD §3.5).
 
 ## Isolation
 
@@ -159,19 +160,21 @@ command can control every container on the host.
   tools volume; it keeps `projects/<p>/`, `profiles/<p>/` and state volumes.
 - `profile:rebuild [p]` exists only if VS Code "Rebuild Container" proves not
   enough (to verify).
-- Repository tasks: `fmt`, `lint`, `test` (unit), `test:integration` (Docker),
-  `check`.
+- Repository tasks: `fmt`, `fmt:check`, `lint`, `test` (unit),
+  `test:integration` (Docker), `check`.
 
 ## Container tasks
 
 - `aidc:sync`, `aidc:update` and `aidc:status`, defined in the container's
   global mise configuration. The prefix avoids accidental name collisions;
-  the documented invocation is meant to select the neutral directory `/`
-  before mise loads any configuration and to turn off task auto-install, so a
-  project cannot interfere and `aidc:status` runs offline (the mechanism is
-  to verify, TD §8).
-- `aidc:status` shows the container tools, the plugins per agent and the last
-  initialization result, read from a log and a marker.
+  the documented invocation selects the neutral directory `/` before mise
+  loads any configuration and turns off task auto-install, so a project
+  cannot interfere and `aidc:status` runs offline (*verified*, probes
+  P4.1–P4.3).
+- `aidc:status` shows the declared tools with their installed versions or
+  `missing`, whether each agent's plugin marker exists, and the last init
+  result, from the config copy, `mise ls`, the marker files and the init
+  log/status.
 - The container stays reachable when initialization fails.
 
 ## Host integration
@@ -241,7 +244,6 @@ command can control every container on the host.
 - Whether VS Code "Rebuild Container" makes `profile:rebuild` unnecessary.
 - Concurrent use of one Claude and one Codex state profile from two containers.
 - Where exactly Claude keeps its login state inside `CLAUDE_CONFIG_DIR`.
-- The container task mechanism: global tasks, `-C /`, the auto-install setting.
 - The manual VS Code smoke checklist in TD §7.
 
 ## Review rounds
@@ -265,3 +267,4 @@ command can control every container on the host.
 - fixed 2026-09-28 — plugin updates follow each CLI's default behaviour with nothing forced, and Codex's allowed sandbox modes are not restricted (implementation Task 6, P6.3/P6.4); ruling: 2026-09-28 (developer).
 - fixed 2026-09-28 — [Minor] final whole-branch review: two Open verification items probed P4.4 and P6.3 settled; license: acceptance-matrix.md P4.4/P6.3; removed.
 - fixed 2026-09-28 — the container user was `dev`, the hostname the container ID, and zsh had no prompt setup (developer's first VS Code use); ruling: 2026-09-28 (developer): the container user is `vscode`, the hostname is the profile name, and oh-my-zsh (pinned, no self-update) is the zsh base.
+- fixed 2026-09-29 — integrity audit (consumption of the implemented design): 14 defects and 8 questions, all bringing the documents in line with the shipped code and probes; license: the audit's two-quote proofs, the acceptance matrix and the code.

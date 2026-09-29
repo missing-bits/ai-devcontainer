@@ -36,7 +36,7 @@ All parts are `new`.
 | Workspace image | Dockerfile | new | `.devcontainer/Dockerfile`, `FROM debian:trixie-slim`, context `.devcontainer/` | OS packages (`zsh`, `git`, `curl`, `gnupg`, `ca-certificates`, `openssh-client`, `jq`, `util-linux`, `procps`, `locales`), `docker-ce-cli` with the Compose plugin and no daemon, mise pinned by version and SHA-256, oh-my-zsh pinned by commit SHA and tarball SHA-256 under `/usr/share/oh-my-zsh` (root-owned, read-only), user `vscode` built with the host UID and GID, volume mount points owned by `vscode`, policy files, launchers, scripts, a `zshrc` loading oh-my-zsh (§3.6) | container tools; agent state |
 | Policy files | image assets | new | `.devcontainer/policy/` → `/etc/claude-code/managed-settings.json`, `/etc/codex/requirements.toml`, `/etc/codex/config.toml` | CLI self-update off, Claude HTTPS marketplace clones, Codex file credentials, Codex default sandbox and approval mode | user preferences; files in agent state |
 | Entrypoint | container executable | new | `.devcontainer/bin/aidc-entrypoint` → `/usr/local/lib/aidc/bin/` | the start sequence (§3.4), the init log and the init result marker, handing over to the keep-alive command whatever happened | tool and plugin logic |
-| Container tasks | mise tasks + bash script | new | `[tasks]` of `.devcontainer/mise.toml` (`aidc:sync`, `aidc:update`, `aidc:status`); `.devcontainer/bin/aidc-tools` shared with the entrypoint; invoked as `MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>`, so the neutral directory is chosen before any configuration loads and no auto-install bypasses the tools lock (*to verify*, §8) | the tools lock, copying the config into the tools volume, `mise install`/`mise upgrade`, the status report | plugin updates |
+| Container tasks | mise tasks + bash script | new | `[tasks]` of `.devcontainer/mise.toml` (`aidc:sync`, `aidc:update`, `aidc:status`); `.devcontainer/bin/aidc-tools` shared with the entrypoint; invoked as `MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:<task>`, so the neutral directory is chosen before any configuration loads and no auto-install bypasses the tools lock (*verified*, P4.1–P4.3) | the tools lock, copying the config into the tools volume, `mise install`/`mise upgrade`, the status report | plugin updates |
 | Agent CLI launchers | container executables | new | `.devcontainer/launchers/claude`, `.../codex` → `/usr/local/lib/aidc/launchers/`, first on `PATH` | resolving each CLI from the tools config copy; Codex without the managed daemon | installing anything; CLI state |
 | Plugin catalog and script | versioned data + bash script | new | `.devcontainer/plugins.json`; `.devcontainer/bin/aidc-plugins` | the default marketplaces and plugins per agent; plugin initialization and its marker, under the state lock | plugin updates, removal, rollback |
 | Profile tools volume | named volume | new | `aidc-tools-<p>` at `/opt/aidc/tools` | installations, the tools config copy with `mise.lock`, the tools lock, the init log and result marker | agent state |
@@ -48,8 +48,9 @@ All parts are `new`.
 ### 3.1 `profile.env` fields
 
 `KEY=value` lines, split at the first `=`, `#` comments and blank lines
-ignored, never sourced. Unknown and duplicate keys are rejected; an empty value
-counts as unset.
+ignored, never sourced. Whitespace around the key and the value is trimmed;
+values are otherwise literal. Unknown and duplicate keys are rejected; an
+empty value counts as unset.
 
 | key | values | unset means | reaches the container as |
 |---|---|---|---|
@@ -77,7 +78,9 @@ Host tasks create the named volumes with `docker volume create`; the fragment
 declares them `external`, so no Compose command removes shared state. The
 generator writes every bind source as an absolute host path, because Compose
 resolves relative paths against the first file's directory. An empty volume
-takes the ownership of the image's mount point (*to verify*, AC2). `CLAUDE_CONFIG_DIR` holds `.claude.json` (*verified*, spike 2026-09-26);
+takes the ownership of the image's mount point (*verified*, AC2, Docker
+Desktop/WSL2, probe P6.2; other topologies stay open, §8).
+`CLAUDE_CONFIG_DIR` holds `.claude.json` (*verified*, spike 2026-09-26);
 Codex keeps `auth.json` in `CODEX_HOME` under the file store (*verified*,
 spike 2026-09-27, after a keyring login failed). The fragment also sets
 `hostname: <p>`, so the profile name identifies the container from inside
@@ -115,9 +118,8 @@ that installs partly stays, and the next run installs the rest. *Verified*,
 spike 2026-09-26: full aqua keys install standalone binaries without Node;
 `mise lock --global` keeps unchanged entries and drops undeclared tools;
 `mise upgrade` moves tools to their newest allowed versions and rewrites
-`mise.lock`. *To verify*: which version `mise lock --global` picks for a
-changed declaration (v1 probes saw the newest installed match), and that
-`mise install --locked` needs no network when everything is installed.
+`mise.lock`. `aidc:update` runs `mise upgrade` even after a failed install,
+and still exits non-zero.
 
 ### 3.4 Start sequence
 
@@ -131,8 +133,8 @@ changed declaration (v1 probes saw the newest installed match), and that
 
 ### 3.5 Plugin initialization
 
-Catalog content (public marketplaces; IDs from the v1 catalog, the
-Codex IDs *to verify*):
+Catalog content (public marketplaces; IDs from the v1 catalog, the Codex
+IDs *verified*, probe P5.2):
 
 ```json
 { "claude": { "marketplaces": ["anthropics/claude-plugins-official",
@@ -161,17 +163,22 @@ Codex IDs *to verify*):
    `{marketplaces: [{name, root, marketplaceSource: {sourceType, source}}]}`
    with a shorthand stored as `https://github.com/<owner/repo>.git`
    (*verified*, probes 2026-09-28).
-5. List the installed plugins, disabled ones included, and install each
-   default not listed: `claude plugin install <plugin@marketplace> --scope
-   user` or `codex plugin add <plugin@marketplace>`. A listed plugin is never
-   installed again, because install re-enables a disabled plugin (*verified*,
-   probe 2026-09-28).
+5. Run `claude plugin list --json` (an array of objects with `.id`) or
+   `codex plugin list --json` (`{installed: [...]}` with `.pluginId`),
+   both including disabled plugins (*verified*, probe P5.1), and install
+   each default not listed: `claude plugin install <plugin@marketplace>
+   --scope user` or `codex plugin add <plugin@marketplace>`. A listed
+   plugin is never installed again, because install re-enables a disabled
+   plugin (*verified*, probe 2026-09-28).
 6. If every command succeeded, write the marker; otherwise log each failure
    and leave the marker absent.
 7. Release the lock.
 
 Codex plugin commands never start the managed daemon (*verified*, 0.157.1
-source). The plugin list command and its JSON shape are *to verify*.
+source). A new default reaches an existing state profile only by native
+CLI commands, or by deleting `<state>/.aidc/plugins-initialized` and
+restarting: initialization then installs only the missing defaults and
+never re-enables a listed plugin (step 5).
 
 ### 3.6 Shell and launcher resolution
 
@@ -194,12 +201,16 @@ result, the launcher exits non-zero and names the documented
 `aidc:sync` invocation of §2.
 
 The `codex` launcher reuses the tested v1 logic: `--no-daemon` for the
-interactive CLI (no subcommand, `resume`, `fork`) unless `--remote` is given;
-refusal of `agents`, `app-server daemon|proxy` and `remote-control` (*verified*,
-0.157.1 source and spike 2026-09-27: without the flag a TUI start copied the
-binary into `CODEX_HOME/packages/` and left a daemon running). The tables in
-`codex-cli.sh` are those verified for 0.157; there is no version guard, and a
-newer Codex is the accepted risk the spec states.
+interactive CLI (no subcommand, `resume`, `fork`) unless `--remote` or
+`--no-daemon` is already given; refusal of `agents`, `app-server
+daemon|proxy` and `remote-control` (*verified*, 0.157.1 source and spike
+2026-09-27: without the flag a TUI start copied the binary into
+`CODEX_HOME/packages/` and left a daemon running). A separate-word
+`-i`/`--image` before a positional argument is refused ("write
+`--image=<file>`"), because it swallows one or more following words and
+the launcher could no longer tell which token is the command. The tables
+in `codex-cli.sh` are those verified for 0.157; there is no version
+guard, and a newer Codex is the accepted risk the spec states.
 
 ### 3.7 Policy keys
 
@@ -230,7 +241,8 @@ boundary.
   `remoteUser: vscode`;
 - `dockerComposeFile`: the absolute path of `.devcontainer/compose.yaml`, then
   `../compose.yaml`;
-- `overrideCommand: false`, so the entrypoint and command stay (*to verify*);
+- `overrideCommand: false`, so the entrypoint and command stay (*verified*,
+  probe P6.1);
 - `updateRemoteUserUID: false`, because the build already uses the host UID.
 
 `.local/<p>/compose.yaml`, written as JSON (valid YAML): `name: aidc-<p>`,
@@ -255,8 +267,10 @@ Linux path fails). "Rebuild Container" reads the same files.
 - **Script locations.** `aidc-entrypoint`, `aidc-tools`, `aidc-plugins` and
   the launchers ship in the image under `/usr/local/lib/aidc/`. The `[tasks]`
   entries call them by absolute path. A script change therefore needs an image
-  rebuild, while a change to `mise.toml` or `plugins.json` needs only
-  `aidc:sync` or the next start.
+  rebuild. A `mise.toml` change reaches the tools config copy only through
+  `aidc:sync`/`aidc:update`: start copies it only when no copy exists yet. A
+  `plugins.json` change reaches only new agent state profiles, since plugin
+  initialization skips an agent whose marker already exists.
 - **`aidc:status`** reads files only, so it works offline:
   - `init.status` and the tail of `init.log`;
   - the declared tools, read with `mise config get --file
@@ -273,21 +287,23 @@ Linux path fails). "Rebuild Container" reads the same files.
   With no argument and no active profile, it exits non-zero and lists
   `profiles/`.
 - **`profile:remove`** takes the lock and runs `docker compose -p aidc-<p>
-  down` against the generated files, falling back to the
-  `com.docker.compose.project=aidc-<p>` label when those files are gone. It
-  then removes `aidc-tools-<p>` and `.local/<p>/`, and clears
+  down` inside `.local/<p>/`, with the fragment alone: the project name
+  identifies the containers (*verified* by the integration test). It falls
+  back to the `com.docker.compose.project=aidc-<p>` label when those files
+  are gone. It then removes `aidc-tools-<p>` and `.local/<p>/`, and clears
   `.local/active-profile` if that file names `<p>`.
-- **`profile.env` syntax.** Only whole-line `#` comments are allowed. Values
-  are literal: quotes are kept as characters and no expansion takes place. A
+- **`profile.env` syntax.** Only whole-line `#` comments are allowed.
+  Whitespace around keys and values is trimmed; values are otherwise
+  literal: quotes are kept as characters and no expansion takes place. A
   `DOCKER_SOCKET` value other than `on` or `off` is rejected.
 - **Shell.** The login shell of `vscode` is zsh. `/etc/zsh/zshrc` in the
   image loads the pinned oh-my-zsh (§3.6), re-asserts the history options
   after it, runs `mise activate zsh`, then registers the launcher `chpwd`
   and `precmd` hooks. `vscode`'s `.zshrc` stays empty, so the zsh new-user
   wizard never appears.
-- **Host tools** in the root `mise.toml`, pinned: the Dev Containers CLI,
-  `jq`, `bats`, `shellcheck`, `shfmt`. Docker and `flock` are host
-  prerequisites.
+- **Host tools** in the root `mise.toml`, pinned: `node` (the npm-backed Dev
+  Containers CLI needs it), the Dev Containers CLI, `jq`, `bats`,
+  `shellcheck`, `shfmt`. Docker and `flock` are host prerequisites.
 - **Reused v1 files** (branch `feature/ai-devcontainer`):
   `.devcontainer/lib/mise-isolation.sh`, which removes every inherited
   `MISE_*` variable and sets only `MISE_DATA_DIR` and
@@ -329,7 +345,8 @@ No process holds the tools lock and a state lock at once. Unlocked, accepted:
 interactive CLI sessions; a project `mise install` into the shared
 `MISE_DATA_DIR`; a launcher during `aidc:update` (its running binary
 keeps its inode); "Rebuild Container" beside `profile:code`. Cross-container
-`flock` on a named volume is *to verify* by the §7 test.
+`flock` on a named volume passed on Docker Desktop/WSL2 (§7 test,
+integration run 2026-09-29); other topologies stay open (§8).
 
 ## 6. Failure handling
 
@@ -340,7 +357,9 @@ Report and retry; no custom transactions.
 - `aidc:sync` or `aidc:update` fails partly: installed tools stay; the task
   names the failures, exits non-zero, and a rerun retries.
 - Plugin initialization fails or is interrupted: no marker; the next start
-  installs only what is missing. A CLI not installed skips it, reported.
+  installs only what is missing. An unresolvable CLI is recorded as a
+  failed `plugins-<agent>` step even when that agent's marker already
+  exists (accepted; the next start retries).
 - A marketplace name already configured from another source: `add` fails,
   reported at every start until fixed by hand.
 - Network down: the container starts; `aidc:status` shows the failure. Plugin
@@ -358,14 +377,16 @@ including a partial run and its retry, and AC8's second half: a default removed
 or disabled after the marker exists stays so at the next start, because
 initialization stops at the marker.
 
-**Docker integration tests**: two profiles (AC2); `cd project && claude`
-in a project declaring its own `claude` (AC3); versions after recreation
+**Docker integration tests**: two profiles (AC2); shared Claude and Codex
+state profiles across two profiles (AC7); `cd project && claude` in a
+project declaring its own `claude` (AC3); versions after recreation
 offline (AC4); `aidc:status` offline from inside an untrusted project
-(AC10); policy (AC6); `profile:remove` (AC11); the interrupted first plugin
-install: stop the container after the first install, start it again, expect
-every default and the marker (AC9); and one cross-container `flock` on a
-shared volume: a second container waits while the first holds it and gets it
-once the holder's container stops.
+(AC10); policy (AC6); `profile:remove` (AC11); every default plugin and
+its marker for a new agent state profile (AC8); the interrupted first
+plugin install: stop the container after the first install, start it
+again, expect every default and the marker (AC9); and one cross-container
+`flock` on a shared volume: a second container waits while the first
+holds it and gets it once the holder's container stops.
 
 Also: AC5 with one uninstallable tool declared; AC12 (`git check-ignore`, the
 build context listing, no private key file, `GIT_*` in a test commit, the
@@ -387,16 +408,12 @@ socket only with the opt-in).
 ## 8. Open questions
 
 - Whether VS Code "Rebuild Container" is enough, or `profile:rebuild` is needed.
-- How `mise lock --global` resolves a changed declaration, and whether
-  `mise install --locked` runs offline.
-- Whether mise reads tasks from `MISE_GLOBAL_CONFIG_FILE`, whether `-C /`
-  applies before configuration loads, and the exact name of the task
-  auto-install setting.
-- The plugin list command and JSON shape per CLI, disabled plugins included.
 - Where Claude keeps its credentials inside `CLAUDE_CONFIG_DIR`.
 - How Docker Desktop reports the socket's group inside a container.
 - Whether Docker copies mount-point ownership into an empty external volume on
-  every supported topology.
+  every supported topology other than Docker Desktop/WSL2 (probe P6.2).
+- Whether cross-container `flock` coordination holds on topologies other
+  than Docker Desktop/WSL2.
 
 ## Review rounds
 
@@ -415,3 +432,4 @@ Integrity audit 2026-09-28 (consumption gate, with the spec): 8 defects and 14 i
 - fixed 2026-09-28 — the dev-container folder URI fails under WSL (Task 6 probe P2.1); license: the plan's pre-agreed P2.1 fallback; `profile:code` opens `.local/<p>` and asks for "Reopen in Container".
 - fixed 2026-09-28 — opening `.local/<p>` and asking for "Reopen in Container" left the developer in the generated folder; license: developer run with the `wslpath -w` host path (window opened in the container); `profile:code` opens the container directly.
 - fixed 2026-09-28 — developer ruling after first VS Code use: the container user is `vscode` (home `/home/vscode`, replacing `dev` everywhere, including the §3.2 mount targets); the generated fragment sets `hostname: <p>`; the image installs oh-my-zsh at a pinned commit under `/usr/share/oh-my-zsh`, loaded by `/etc/zsh/zshrc` with the default theme and the `git` plugin, updates disabled and its cache under `$HOME/.cache/oh-my-zsh`; the launcher PATH hooks stay registered after mise's and oh-my-zsh's.
+- fixed 2026-09-29 — integrity audit (consumption of the implemented design): 14 defects and 8 questions, all bringing the documents in line with the shipped code and probes; license: the audit's two-quote proofs, the acceptance matrix and the code.

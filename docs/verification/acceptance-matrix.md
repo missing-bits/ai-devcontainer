@@ -47,8 +47,10 @@ probe P6.1 below.
 ## Probes
 
 Every probe ran on 2026-09-28, during Tasks 2, 4, 5 and 6 of
-`docs/plans/2026-09-28-ai-devcontainer-v2-plan.md`. Full detail is in the
-SDD reports of that plan (`task-2-report.md` through `task-7-report.md`).
+`docs/plans/2026-09-28-ai-devcontainer-v2-plan.md`, except P7.4, which
+reran on 2026-09-29 during the integrity audit's integration run. Full
+detail is in the SDD reports of that plan (`task-2-report.md` through
+`task-7-report.md`).
 
 | probe | result | date |
 |---|---|---|
@@ -69,3 +71,4 @@ SDD reports of that plan (`task-2-report.md` through `task-7-report.md`).
 | P7.1 (Claude login location inside `CLAUDE_CONFIG_DIR`) | **Not run**: needs a real `claude` login, which this non-interactive environment cannot perform. Stays on the manual checklist (item 4/8 exercise it incidentally; no dedicated item, since TD §8 only asks where the file is, not that login works). | 2026-09-28 |
 | P7.2 (whether "Rebuild Container" makes `profile:rebuild` unnecessary) | **Not run**: needs VS Code driving a running profile. Stays on the manual checklist, item 10. | 2026-09-28 |
 | P7.3 (concurrent use of one state profile from two containers) | **Not run** as a real two-CLI-session probe: needs interactive `claude`/`codex` logins. Its filesystem precondition — two containers mounting the identical state volumes, with a file written by one immediately visible from the other — is verified in Docker (AC7 above). The concurrent-session part stays on the manual checklist, item 11. | 2026-09-28 |
+| P7.4 (cross-container `flock` on a shared volume, TD §5) | **Pass on Docker Desktop/WSL2**: `tests/integration/tools.bats`'s second-container test waits for the `flock` the first container holds on a shared volume and acquires it once `docker stop` ends the holder. Other topologies untested. | 2026-09-29 |
