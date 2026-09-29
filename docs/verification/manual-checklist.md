@@ -125,8 +125,11 @@ kinds of change (an image change, a change to the shared
 `.devcontainer/compose.yaml`) and confirming "Rebuild Container" alone always
 picks them up. A `.devcontainer/mise.toml` change is out of scope here: a
 start keeps the existing tools config copy, so it needs `aidc:sync` or
-`aidc:update` (TD §3.9). Corresponds to
-probe P7.2, which was not run (needs VS Code driving a running profile).
+`aidc:update` (TD §3.9). Corresponds to probe P7.2.
+
+Result, 2026-09-29 (developer runs): "Rebuild Container" alone picked up an
+image change (item 12) and a variable added to the shared
+`.devcontainer/compose.yaml`; `profile:rebuild` is not needed.
 
 A `profile.env` edit is settled, not by this item: "Rebuild Container"
 reads the generated `.local/<p>/` files and never re-reads `profile.env`,

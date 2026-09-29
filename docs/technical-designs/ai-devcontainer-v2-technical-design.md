@@ -445,7 +445,9 @@ key file, `GIT_*` in a test commit, the socket only with the opt-in).
 
 ## 8. Open questions
 
-- Whether VS Code "Rebuild Container" is enough, or `profile:rebuild` is needed.
+- ~~Whether VS Code "Rebuild Container" is enough, or `profile:rebuild` is
+  needed.~~ Answered 2026-09-29 (P7.2): it is enough for image and shared
+  Compose changes; a `profile.env` change needs `profile:code` first.
 - Where Claude keeps its credentials inside `CLAUDE_CONFIG_DIR`.
 - How Docker Desktop reports the socket's group inside a container.
 - Whether Docker copies mount-point ownership into an empty external volume on
