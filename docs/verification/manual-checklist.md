@@ -158,3 +158,14 @@ precondition was verified in Docker (see the acceptance matrix, AC7).
 rebuild, `mise --version` reports the version `.devcontainer/Dockerfile`
 pins. `tests/integration/sudo_mise_trust.bats` covers the same with a
 Compose recreate (S3); this item confirms VS Code's rebuild behaves alike.
+
+## 13. `KEEP_RUNNING=on` keeps the container after VS Code closes (S10)
+
+**Command:** set `KEEP_RUNNING=on` in a profile, run `profile:code`, use
+"Rebuild Container", and work in the window. In its terminal, start a long process, e.g.
+`sleep 3600`. Close the window; after half a minute check
+`docker ps --filter name=aidc-<p>-workspace-1` and
+`docker exec aidc-<p>-workspace-1 pgrep -a sleep`.
+
+**Expected:** the container is still running. Record whether `sleep`
+survived: that decides whether agents need `tmux` to outlive the window.

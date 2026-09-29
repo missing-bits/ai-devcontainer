@@ -61,6 +61,8 @@ integration runs of 2026-09-29.
 | S6 | integration | `sudo_mise_trust.bats` | "S6: a project in the profile project space loads without a trust prompt"; "S6: a fresh project outside /workspaces still needs trust in the shell" | pass |
 | S7 | integration | `sudo_mise_trust.bats` | "S7: an archive S downloaded installs in B, with an empty tools volume, on no network" | pass |
 | S8 | integration (probe) | `sudo_mise_trust.bats` | "S8 probe: two containers install the same version into the shared downloads at once; a retry settles a lost race"; "S8 probe: an install killed mid-download does not break the next one" | race found; a retry settles it (see P8.1) |
+| S9 | unit | `tests/unit/host/generate.bats`; `tests/unit/host/profile_env.bats` | "devcontainer.json stops the container on close unless KEEP_RUNNING=on"; "KEEP_RUNNING defaults to off, accepts on, and rejects anything else" | pass |
+| S10 | checklist | `manual-checklist.md` item 13 | — | pass after "Rebuild Container" (developer runs, 2026-09-29): a container created before `KEEP_RUNNING=on` still stopped about a minute after the window closed, since Dev Containers reads `shutdownAction` from the container's creation metadata; the rebuilt one kept running. A `sleep 3600` from the window's terminal did not survive; a Claude Code task did, in Claude's own `claude daemon` |
 
 ## Probes
 

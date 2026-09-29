@@ -110,6 +110,7 @@ aidc::generate() {
     --arg name "aidc-$profile" \
     --arg shared "$AIDC_ROOT/.devcontainer/compose.yaml" \
     --arg workspace "$workspace" \
+    --arg shutdown "$([ "$AIDC_KEEP_RUNNING" = on ] && echo none || echo stopCompose)" \
     '{
       name: $name,
       dockerComposeFile: [$shared, "../compose.yaml"],
@@ -117,7 +118,8 @@ aidc::generate() {
       workspaceFolder: $workspace,
       remoteUser: "vscode",
       overrideCommand: false,
-      updateRemoteUserUID: false
+      updateRemoteUserUID: false,
+      shutdownAction: $shutdown
     }' >"$stage/.devcontainer/devcontainer.json"; then
     aidc::_gen_fail "$stage" "generate: cannot write devcontainer.json"
   fi

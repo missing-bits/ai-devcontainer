@@ -161,12 +161,14 @@ tool_version() { # <profile> <tool key>
 
 @test "S8 probe: an install killed mid-download does not break the next one" {
   # The kill must land while mise still runs, and must leave the tool
-  # uninstalled, or the probe proves nothing.
-  run aidc_it_exec "$S" sh -c 'mise install aqua:cli/cli@2.63.2 >/dev/null 2>&1 & pid=$!; sleep 1; kill -9 $pid'
+  # uninstalled, or the probe proves nothing. The probe is about the
+  # downloads directory, so it skips GitHub attestation checks, whose
+  # Sigstore fetch failed from the container in two of four runs.
+  run aidc_it_exec "$S" sh -c 'MISE_AQUA_GITHUB_ATTESTATIONS=false mise install aqua:cli/cli@2.63.2 >/dev/null 2>&1 & pid=$!; sleep 1; kill -9 $pid'
   assert_success
   run aidc_it_exec "$S" mise where aqua:cli/cli@2.63.2
   assert_failure
-  run aidc_it_exec "$B" mise install aqua:cli/cli@2.63.2
+  run aidc_it_exec "$B" env MISE_AQUA_GITHUB_ATTESTATIONS=false mise install aqua:cli/cli@2.63.2
   assert_success
   run aidc_it_exec "$B" mise where aqua:cli/cli@2.63.2
   assert_success

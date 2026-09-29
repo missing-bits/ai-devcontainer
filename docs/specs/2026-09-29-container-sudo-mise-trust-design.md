@@ -11,7 +11,7 @@ base: develop
 
 ## Purpose
 
-Four problems in the v2 container, each with the decision that answers it:
+Five problems in the v2 container, each with the decision that answers it:
 
 - `vscode` cannot run anything as root, so it cannot install an OS
   package a project needs (D1).
@@ -24,6 +24,8 @@ Four problems in the v2 container, each with the decision that answers it:
 - Every new profile, and every profile rebuilt after `profile:remove`,
   downloads the same tool archives again (D5); every project checked out
   in a profile asks for `mise trust` before its configuration loads (D4).
+- Closing the VS Code window stops the profile's container (verified
+  2026-09-29), and a profile may want it to keep running (D6).
 
 Terms follow `docs/domain/glossary.md`.
 
@@ -41,8 +43,9 @@ they stand. It replaces or makes exceptions to these contracts:
   copies it (D3).
 - v2 Isolation: `vscode` can act as root (D1), and the consequences grow
   (Isolation, amended).
-- v2 Profiles: `profile.env` gains two fields (D3); every container
+- v2 Profiles: `profile.env` gains three fields (D3, D6); every container
   mounts one more volume, shared by all profiles (D5).
+- TD §3.8: the generated `devcontainer.json` gains `shutdownAction` (D6).
 - v2 AC10 (a start without network marks the start failed and still lets
   VS Code attach): unchanged. A skipped update adds no failure of its own
   (D3), but a failed tools step or plugin initialization still marks the
@@ -139,6 +142,21 @@ generated fragment, entrypoint and container tasks rows), §3.1
   shares nothing between profiles; and sharing mise's whole cache, which
   profiles on different mise versions (D2, D3) would read and write
   together.
+- **D6.** A `profile.env` field, `KEEP_RUNNING`, `on` or `off`, default
+  `off`, validated like `DOCKER_SOCKET`, decides what closing VS Code does
+  to the container. The generator writes VS Code's native
+  `shutdownAction` into the profile's `devcontainer.json`: `stopCompose`
+  for `off`, today's default made explicit, and `none` for `on`, so the
+  container keeps running after the window closes. Dev Containers reads
+  `shutdownAction` from the metadata it stores on the container when it
+  creates it, so a change takes effect after `profile:code` and "Rebuild
+  Container", like any other `profile.env` field (developer run
+  2026-09-29: a container created before the change still stopped). A
+  kept container stops
+  with `docker stop aidc-<p>-workspace-1` or `profile:remove`, and stays
+  stopped after Docker or WSL restarts, since it has no restart policy.
+  A process started in a VS Code terminal does not survive the closed
+  window; Claude Code does, through its own background daemon (S10).
 
 ## Out of scope
 
@@ -151,6 +169,7 @@ generated fragment, entrypoint and container tasks rows), §3.1
 - A general network detector: D3's check is the whole contract.
 - A lock around the shared downloads; mise's own handling applies until a
   probe shows it falls short.
+- A restart policy or a `profile:stop` task for kept containers.
 
 ## Isolation, amended
 
@@ -201,7 +220,8 @@ field on.
   in the init result marker.
 - `examples/profile/profile.env` and the host parser: the D3 fields.
 - The generator and `tasks/host/profile/code`: the D3 variables, the
-  downloads volume and `AIDC_MISE_DOWNLOADS_VOLUME`.
+  downloads volume and `AIDC_MISE_DOWNLOADS_VOLUME`; `KEEP_RUNNING` and
+  `shutdownAction` (D6).
 - `docs/domain/glossary.md`: **Mise downloads volume**, with
   `_Avoid_: shared cache, tools cache`.
 - Tests: unit tests for the parser, the generator, `aidc-tools`, the
@@ -276,3 +296,10 @@ cache in each tools volume, and `mise cache clear` empties it.
   race marks `tools` failed, and the next start or `aidc:sync` settles it.
   The integration test asserts that a retry settles a lost race. Concurrent
   use stays a requirement met by retry, not by a lock.
+- **S9.** The generated `devcontainer.json` holds `"shutdownAction":
+  "stopCompose"` with `KEEP_RUNNING` unset or `off`, and `"none"` with
+  `on`; any other value is rejected (unit tests).
+- **S10.** With `KEEP_RUNNING=on`, after `profile:code` and "Rebuild
+  Container", closing the VS Code window leaves the container running; the
+  probe also records whether a process started in the window's terminal
+  survives (manual checklist).

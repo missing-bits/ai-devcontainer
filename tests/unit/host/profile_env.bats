@@ -75,6 +75,19 @@ write_env() { printf '%s\n' "$@" >"$AIDC_ROOT/profiles/dev/profile.env"; }
   done
 }
 
+@test "KEEP_RUNNING defaults to off, accepts on, and rejects anything else" {
+  write_env ""
+  aidc::load_profile_env dev
+  [ "$AIDC_KEEP_RUNNING" = off ]
+  write_env "KEEP_RUNNING=on"
+  aidc::load_profile_env dev
+  [ "$AIDC_KEEP_RUNNING" = on ]
+  write_env "KEEP_RUNNING=yes"
+  run aidc::load_profile_env dev
+  assert_failure
+  assert_output_contains "KEEP_RUNNING must be 'on' or 'off'"
+}
+
 @test "quotes in a value are kept literally" {
   write_env 'GIT_AUTHOR_NAME="Example Developer"'
   aidc::load_profile_env dev

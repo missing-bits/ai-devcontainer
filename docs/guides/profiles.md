@@ -36,6 +36,7 @@ Run these from the repository root with `mise run <task>`:
 | `DOCKER_SOCKET` | `on` or `off`; see [Security](security.md) first |
 | `START_UPDATE_MISE` | `on` or `off`: update mise at every online start |
 | `START_UPGRADE_TOOLS` | `on` or `off`: run `aidc:update` at every online start |
+| `KEEP_RUNNING` | `on` or `off`: keep the container running after VS Code closes |
 | `GIT_AUTHOR_*`, `GIT_COMMITTER_*` | Git identity inside the container |
 | `GIT_SSH_COMMAND` | SSH command Git uses; see below |
 
@@ -67,6 +68,23 @@ existing container: the Dev Containers CLI starts it with `up
 --no-recreate`, so a running session survives (verified 2026-09-29).
 "Rebuild Container" reads the files in `.local/<name>/` and does not read
 `profile.env`, so a `profile.env` change needs both, in that order.
+
+## When VS Code closes
+
+Closing the VS Code window stops the profile's container; state, tools and
+volumes stay, and the next `profile:code` starts it again. With
+`KEEP_RUNNING=on` the container keeps running instead. The field takes
+effect after `profile:code` and "Rebuild Container": VS Code reads it from
+the container, which stores it when it is created. Stop a kept container
+with `docker stop aidc-<name>-workspace-1`, or remove it with
+`profile:remove`. No container restarts on its own after Docker or WSL
+restarts.
+
+A kept container does not keep what ran in the window's terminal: a
+process started there ends when the window closes. Claude Code keeps its
+sessions running in its own background daemon, so a task given to `claude`
+goes on and you can return to it later. Codex runs without its daemon in
+these containers, so a `codex` session ends with the window.
 
 ## Logging in to the agents
 

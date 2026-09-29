@@ -58,6 +58,7 @@ empty value counts as unset.
 | `PROFILE_CLAUDE`, `PROFILE_CODEX`, `PROFILE_SHELL` | a valid name | the environment profile's name | the volume names in §3.2 |
 | `DOCKER_SOCKET` | `on`, `off` | `off` | with `on`: a bind of `/var/run/docker.sock` and `group_add` of its host GID |
 | `GIT_AUTHOR_NAME`, `GIT_AUTHOR_EMAIL`, `GIT_COMMITTER_NAME`, `GIT_COMMITTER_EMAIL`, `GIT_SSH_COMMAND` | literal text | not set | environment variables of the same name |
+| `KEEP_RUNNING` | `on`, `off` | `off` | not the container: the generated `devcontainer.json`'s `shutdownAction`, `none` for `on` and `stopCompose` for `off` (§3.8) |
 | `START_UPDATE_MISE`, `START_UPGRADE_TOOLS` | `on`, `off` | `off` | `AIDC_START_UPDATE_MISE`, `AIDC_START_UPGRADE_TOOLS`, which change what each start does (§3.4), not only the container's configuration |
 
 Names match `^[a-z0-9][a-z0-9_-]*$` and are neither `locks` nor `active-profile`. The variables override `user.name`,
@@ -260,6 +261,9 @@ boundary.
 
 - `name: aidc-<p>`, `service: workspace`, `workspaceFolder: /workspaces/<p>`,
   `remoteUser: vscode`;
+- `shutdownAction`: `stopCompose`, VS Code's default for Compose, or `none`
+  with `KEEP_RUNNING=on`, so the container outlives the window (container
+  sudo/mise/trust spec, D6);
 - `dockerComposeFile`: the absolute path of `.devcontainer/compose.yaml`, then
   `../compose.yaml`;
 - `overrideCommand: false`, so the entrypoint and command stay (*verified*,

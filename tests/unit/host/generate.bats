@@ -130,6 +130,14 @@ setup() {
   [ "$(jq -r '.dockerComposeFile[1]' "$f")" = "../compose.yaml" ]
 }
 
+@test "devcontainer.json stops the container on close unless KEEP_RUNNING=on" {
+  aidc::generate demo "$AIDC_ROOT/.local/demo"
+  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo/.devcontainer/devcontainer.json")" = stopCompose ]
+  printf 'KEEP_RUNNING=on\n' >"$AIDC_ROOT/profiles/demo/profile.env"
+  aidc::generate demo "$AIDC_ROOT/.local/demo2"
+  [ "$(jq -r .shutdownAction "$AIDC_ROOT/.local/demo2/.devcontainer/devcontainer.json")" = none ]
+}
+
 @test "an existing out-dir is refused and nothing is deleted" {
   mkdir -p "$AIDC_ROOT/.local/demo/keepme"
   touch "$AIDC_ROOT/.local/demo/keepme/file"
