@@ -1,3 +1,6 @@
 /profiles/
 /projects/
 /.local/
+
+# Per-user Claude Code settings (machine-specific paths).
+/.claude/settings.local.json
