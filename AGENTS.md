@@ -43,8 +43,8 @@ implementation plans are versioned; do not ignore `docs/domain/`,
   the developer's decision (v2 brief, 2026-09-28).
 - Keep the design close to KISS and YAGNI: prefer native tool behavior and
   plain failure reporting over custom mechanisms.
-- Keep shared project instructions here. `CLAUDE.md` imports this file;
-  avoid maintaining duplicate copies of the same instructions.
+- Keep shared project instructions here. Claude Code and Codex both read
+  this file natively; do not add a `CLAUDE.md` that duplicates it.
 
 ## Privacy and scope
 
