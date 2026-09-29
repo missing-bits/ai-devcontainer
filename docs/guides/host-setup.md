@@ -36,6 +36,42 @@ Dev Containers CLI, `jq`, `bats`, `shellcheck`, `shfmt` and `usage`, which
 shell completion needs for task arguments. It also installs the latest
 Claude Code and Codex CLI, for working on this repository on the host.
 
+## VS Code port forwarding
+
+The agents log in through a browser on the host that returns to a callback
+server inside the container, on a fixed or a random port. Containers use
+Docker's bridge network, so the browser reaches that port only through
+VS Code's port forwarding. Keep this VS Code setting at its default:
+
+```json
+"remote.autoForwardPortsSource": "process"
+```
+
+With `output` or `hybrid`, VS Code forwards only ports it sees printed in a
+terminal, and Claude Code's login fails with `ERR_CONNECTION_REFUSED`
+(verified 2026-09-29). See [Profiles](profiles.md#logging-in-to-the-agents)
+for logging in without a forward.
+
+## Docker Desktop or Docker Engine in WSL
+
+Both work; they differ in networking and in what this repository has
+verified on them.
+
+- **Docker Desktop** (the engine the probes of 2026-09-28/29 ran on):
+  `network_mode: host` would share the Docker VM's network, not the one of
+  WSL or Windows, so a port bound inside the container is unreachable from
+  either (verified 2026-09-29). Docker Desktop 4.34 and later has a host
+  networking setting (Settings → Resources → Network) that changes this;
+  not verified here. The containers do not use host networking, so none of
+  this is needed for normal use.
+- **Docker Engine inside WSL** (`docker-ce`): host networking shares the
+  WSL network. `DOCKER_SOCKET=on` is verified on Docker Engine only
+  ([Security](security.md#the-docker-socket)). Behind a VPN that lowers
+  the WSL interface's MTU, containers on a bridge network with the default
+  MTU of 1500 can stall on HTTPS; setting a matching `mtu` in
+  `/etc/docker/daemon.json` is the usual fix. Reported by a similar setup,
+  not verified here.
+
 ## An `ssh-agent` on WSL
 
 WSL does not start an `ssh-agent`. A systemd user unit can start one and

@@ -84,9 +84,8 @@ Without the forward, both still log in:
   code; paste it into the terminal.
 - Codex: `codex login --device-auth` logs in with a code, no callback.
 
-`network_mode: host` is no fix on Docker Desktop: without its host
-networking setting, the container shares the Docker VM's network, not the
-one of WSL or Windows.
+VS Code's forwarding setting and the Docker Desktop networking notes are
+in [Host setup](host-setup.md#vs-code-port-forwarding).
 
 ## Git identity and SSH
 
