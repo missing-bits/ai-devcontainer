@@ -17,6 +17,12 @@ aidc::info() {
   printf '%s\n' "$*"
 }
 
+# Prints the name of the mise downloads volume every profile shares.
+# AIDC_MISE_DOWNLOADS_VOLUME is a test seam: production sets none.
+aidc::downloads_volume() {
+  printf '%s\n' "${AIDC_MISE_DOWNLOADS_VOLUME:-aidc-mise-downloads}"
+}
+
 # Prints the environment profiles under profiles/, one per line; nothing when
 # profiles/ is absent or empty.
 aidc::list_profiles() {

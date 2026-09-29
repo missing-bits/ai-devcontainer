@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# Container entrypoint: the start sequence of TD §3.4. Runs the tools step,
-# then plugin initialization for each agent whose launcher resolves its CLI,
-# records the result in the init result marker, and execs the keep-alive
+# Container entrypoint: the start sequence of TD §3.4. Decides the start
+# policy of AIDC_START_UPDATE_MISE and AIDC_START_UPGRADE_TOOLS (container
+# sudo/mise/trust spec, D3), runs the tools step, then plugin
+# initialization for each agent whose launcher resolves its CLI, records
+# the result in the init result marker, and execs the keep-alive
 # command whatever happened, so VS Code can attach. Every step is guarded
 # rather than left to errexit, so every path reaches the final exec.
 #
@@ -34,11 +36,38 @@ resolves() {
 	)" && [ -n "$exe" ]
 }
 
+# online: one HTTPS request with a five-second timeout; any response counts
+# (D3). Nothing else decides whether the start is online.
+online() {
+	curl -sS -o /dev/null --max-time 5 https://api.github.com
+}
+
 start() {
-	local failed=() agent
+	local failed=() agent network=unchecked tools_step=(start)
 	write_marker "running $(utc_now)"
 
-	"$AIDC_BIN/aidc-tools" start || failed+=(tools)
+	if [ "${AIDC_START_UPDATE_MISE-}" = on ] || [ "${AIDC_START_UPGRADE_TOOLS-}" = on ]; then
+		if online; then network=online; else network=offline; fi
+	fi
+
+	if [ "${AIDC_START_UPDATE_MISE-}" = on ]; then
+		if [ "$network" = online ]; then
+			"$AIDC_BIN/aidc-tools" self-update || failed+=(mise)
+		else
+			printf 'aidc: offline: skipping the mise self-update\n' >&2
+		fi
+	fi
+
+	if [ "${AIDC_START_UPGRADE_TOOLS-}" = on ]; then
+		if [ "$network" = online ]; then
+			tools_step=(update)
+		else
+			printf 'aidc: offline: skipping the tools upgrade; copying the tools config and installing without mise lock\n' >&2
+			tools_step=(start copy)
+		fi
+	fi
+	printf 'aidc: tools step: %s\n' "${tools_step[*]}" >&2
+	"$AIDC_BIN/aidc-tools" "${tools_step[@]}" || failed+=(tools)
 
 	for agent in claude codex; do
 		if ! resolves "$agent"; then

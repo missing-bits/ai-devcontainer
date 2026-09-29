@@ -34,7 +34,7 @@ aidc::generate() {
     aidc::die "generate: profile '$profile' does not enable the Docker socket: no Docker group ID is accepted"
   fi
 
-  local stage vol_tools vol_claude vol_codex vol_shell project workspace uid gidnum
+  local stage vol_tools vol_claude vol_codex vol_shell vol_downloads project workspace uid gidnum
   # Staged beside $out so the final mv is a same-filesystem rename.
   stage="$(mktemp -d "$(dirname -- "$out")/.$profile.XXXXXX")" || aidc::die "generate: cannot create a staging directory"
   mkdir -- "$stage/.devcontainer" || aidc::_gen_fail "$stage" "generate: cannot create the staging .devcontainer directory"
@@ -43,6 +43,7 @@ aidc::generate() {
   vol_claude="aidc-claude-$AIDC_STATE_CLAUDE"
   vol_codex="aidc-codex-$AIDC_STATE_CODEX"
   vol_shell="aidc-shell-$AIDC_STATE_SHELL"
+  vol_downloads="$(aidc::downloads_volume)"
   project="$AIDC_ROOT/projects/$profile"
   workspace="/workspaces/$profile"
   uid="$(id -u)" || aidc::_gen_fail "$stage" "generate: cannot read the host UID"
@@ -60,6 +61,9 @@ aidc::generate() {
     --arg claude "$vol_claude" \
     --arg codex "$vol_codex" \
     --arg shell "$vol_shell" \
+    --arg downloads "$vol_downloads" \
+    --arg um "$AIDC_START_UPDATE_MISE" \
+    --arg ut "$AIDC_START_UPGRADE_TOOLS" \
     --arg project "$project" \
     --arg workspace "$workspace" \
     --argjson sockon "$socket_flag" \
@@ -72,18 +76,20 @@ aidc::generate() {
     '
     ({GIT_AUTHOR_NAME: $an, GIT_AUTHOR_EMAIL: $ae, GIT_COMMITTER_NAME: $cn,
       GIT_COMMITTER_EMAIL: $ce, GIT_SSH_COMMAND: $sc}
-      | with_entries(select(.value != ""))) as $env
+      | with_entries(select(.value != ""))
+      | {AIDC_START_UPDATE_MISE: $um, AIDC_START_UPGRADE_TOOLS: $ut} + .) as $env
     | ([
         {type: "volume", source: $tools, target: "/opt/aidc/tools"},
         {type: "volume", source: $claude, target: "/home/vscode/.claude"},
         {type: "volume", source: $codex, target: "/home/vscode/.codex"},
         {type: "volume", source: $shell, target: "/home/vscode/.local/state/shell"},
+        {type: "volume", source: $downloads, target: "/opt/aidc/downloads"},
         {type: "bind", source: $project, target: $workspace}
       ] + (if $sockon then
             [{type: "bind", source: "/var/run/docker.sock", target: "/var/run/docker.sock"}]
           else [] end)) as $volumes
     | ({hostname: $hostname, build: {args: {USER_UID: $uid, USER_GID: $gid}}, volumes: $volumes}
-        + (if ($env | length) > 0 then {environment: $env} else {} end)
+        + {environment: $env}
         + (if $sockon then {group_add: [$dgid]} else {} end)) as $workspace_svc
     | {
         name: $name,
@@ -92,7 +98,8 @@ aidc::generate() {
           ($tools): {external: true},
           ($claude): {external: true},
           ($codex): {external: true},
-          ($shell): {external: true}
+          ($shell): {external: true},
+          ($downloads): {external: true}
         }
       }
     ' >"$stage/compose.yaml"; then

@@ -105,6 +105,58 @@ old_copy() {
   assert_calls "lock --global --platform linux-x64" "install --locked" "upgrade"
 }
 
+@test "start copy copies, then installs locked when mise.lock exists, and never locks" {
+  old_copy
+  run "$T" start copy
+  assert_success
+  cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
+  grep -qx 'old lock' "$AIDC_TOOLS_DIR/mise.lock"
+  assert_calls "install --locked"
+}
+
+@test "start copy keeps the copy and fails when the old lock does not cover it" {
+  old_copy
+  export STUB_FAIL="install --locked"
+  run "$T" start copy
+  assert_status 1
+  cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
+  assert_calls "install --locked" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
+}
+
+@test "start copy without mise.lock runs plain mise install, never locks, and fails" {
+  run "$T" start copy
+  assert_status 1
+  cmp "$AIDC_DEVCONTAINER_DIR/mise.toml" "$AIDC_TOOLS_DIR/mise.toml"
+  assert_output_contains "no mise.lock"
+  assert_calls "install" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
+}
+
+@test "start copy takes the tools lock" {
+  old_copy
+  flock "$AIDC_TOOLS_DIR/.lock" sleep 30 &
+  HOLDER=$!
+  wait_for_lock_held "$AIDC_TOOLS_DIR/.lock"
+  run timeout 1 "$T" start copy
+  assert_status 124
+  [ ! -e "$STUB_DIR/mise-calls" ]
+}
+
+@test "self-update updates the mise binary only, without the tools lock" {
+  flock "$AIDC_TOOLS_DIR/.lock" sleep 30 &
+  HOLDER=$!
+  wait_for_lock_held "$AIDC_TOOLS_DIR/.lock"
+  run timeout 5 "$T" self-update
+  assert_success
+  assert_calls "self-update -y --no-plugins"
+}
+
+@test "a failing self-update exits non-zero" {
+  export STUB_FAIL="self-update -y --no-plugins"
+  run "$T" self-update
+  assert_failure
+  assert_output_contains "aidc-tools self-update failed"
+}
+
 @test "the copy is readable by everyone" {
   run "$T" sync
   assert_success
@@ -172,16 +224,18 @@ old_copy() {
   assert_calls "lock --global --platform linux-x64" "install --locked" "upgrade" "config get --file $AIDC_TOOLS_DIR/mise.toml tools" "ls --json"
 }
 
-@test "every mise call runs from / with only the two MISE_* variables" {
-  export MISE_FOO=bar MISE_TASK_RUN_AUTO_INSTALL=false
+@test "every mise call runs from / with only the five fixed MISE_* variables" {
+  export MISE_FOO=bar MISE_TASK_RUN_AUTO_INSTALL=false MISE_TRUSTED_CONFIG_PATHS=/workspaces
   mkdir -p "$BATS_TEST_TMPDIR/work"
   cd "$BATS_TEST_TMPDIR/work"
-  for task in start sync update status; do
-    run "$T" "$task"
+  old_copy
+  for task in start sync update status self-update "start copy"; do
+    # shellcheck disable=SC2086 # "start copy" is two arguments
+    run "$T" $task
     assert_success
   done
   [ "$(wc -l <"$STUB_DIR/mise-env")" -ge 7 ]
-  if grep -vx 'pwd=/ MISE_DATA_DIR MISE_GLOBAL_CONFIG_FILE ' "$STUB_DIR/mise-env"; then
+  if grep -vx 'pwd=/ MISE_ALWAYS_KEEP_DOWNLOAD MISE_CACHE_DIR MISE_DATA_DIR MISE_DOWNLOADS_DIR MISE_GLOBAL_CONFIG_FILE ' "$STUB_DIR/mise-env"; then
     return 1
   fi
 }
@@ -245,7 +299,16 @@ version = "6"'
 @test "an unknown task exits non-zero" {
   run "$T" bogus
   assert_failure
-  assert_output_contains "usage: aidc-tools start|sync|update|status"
+  assert_output_contains "usage: aidc-tools start [copy]|sync|update|status|self-update"
+}
+
+@test "only start takes the copy argument" {
+  run "$T" sync copy
+  assert_failure
+  assert_output_contains "usage:"
+  run "$T" start-copy
+  assert_failure
+  assert_output_contains "usage:"
 }
 
 @test "the container tasks call aidc-tools by absolute path" {

@@ -120,10 +120,11 @@ claude_plugin_count() {
     return 1
   }
 
-  mkdir -p "$AIDC_ROOT/projects/$p3/untrusted-proj"
-  printf '[tools]\nnode = "24"\n' >"$AIDC_ROOT/projects/$p3/untrusted-proj/mise.toml"
+  # Outside /workspaces, which the container trusts for mise (container
+  # sudo/mise/trust spec, D4), so the project stays untrusted.
+  aidc_it_exec "$p3" sh -c 'mkdir -p /tmp/untrusted-proj && printf "[tools]\nnode = \"24\"\n" >/tmp/untrusted-proj/mise.toml'
 
-  run docker exec --workdir "/workspaces/$p3/untrusted-proj" "$container" \
+  run docker exec --workdir /tmp/untrusted-proj "$container" \
     env MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:status
   assert_success
   assert_output_contains "failed"

@@ -97,7 +97,8 @@ snapshot() { find "$AIDC_ROOT" | LC_ALL=C sort; }
   new demo
   code_task demo
   assert_success
-  [ "$(grep -c '^docker volume create aidc-' "$CALLS")" = 4 ]
+  [ "$(grep -c '^docker volume create aidc-' "$CALLS")" = 5 ]
+  grep -q "^docker volume create aidc-mise-downloads\$" "$CALLS"
   grep -q "^docker volume create aidc-tools-demo\$" "$CALLS"
   grep -q "^docker volume create aidc-claude-demo\$" "$CALLS"
   grep -q "^docker volume create aidc-codex-demo\$" "$CALLS"

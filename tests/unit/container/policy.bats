@@ -49,3 +49,20 @@ toml_keys() {
   grep -q -x '      CODEX_HOME: /home/vscode/.codex' "$f"
   grep -q -x '      HISTFILE: /home/vscode/.local/state/shell/zsh_history' "$f"
 }
+
+@test "the shared Compose file trusts the project space and shares mise downloads" {
+  local f="$D/compose.yaml"
+  grep -q -x '      MISE_TRUSTED_CONFIG_PATHS: /workspaces' "$f"
+  grep -q -x '      MISE_DOWNLOADS_DIR: /opt/aidc/downloads' "$f"
+  grep -q -x '      MISE_ALWAYS_KEEP_DOWNLOAD: "1"' "$f"
+  grep -q -x '      MISE_CACHE_DIR: /opt/aidc/tools/cache' "$f"
+}
+
+@test "the Compose file and the mise isolation set the same mise directories" {
+  local var value
+  for var in MISE_DATA_DIR MISE_GLOBAL_CONFIG_FILE MISE_DOWNLOADS_DIR MISE_CACHE_DIR; do
+    value="$(sed -n "s/^AIDC_$var=//p" "$D/lib/mise-isolation.sh")"
+    [ -n "$value" ]
+    grep -q -x "      $var: $value" "$D/compose.yaml"
+  done
+}

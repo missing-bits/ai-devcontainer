@@ -26,7 +26,7 @@ aidc::load_profile_env() {
     key="$(aidc::_env_trim "${trimmed%%=*}")"
     value="$(aidc::_env_trim "${trimmed#*=}")"
     case "$key" in
-    PROFILE_CLAUDE | PROFILE_CODEX | PROFILE_SHELL | DOCKER_SOCKET | \
+    PROFILE_CLAUDE | PROFILE_CODEX | PROFILE_SHELL | DOCKER_SOCKET | START_UPDATE_MISE | START_UPGRADE_TOOLS | \
       GIT_AUTHOR_NAME | GIT_AUTHOR_EMAIL | GIT_COMMITTER_NAME | GIT_COMMITTER_EMAIL | GIT_SSH_COMMAND) ;;
     *) aidc::die "$file line $n: unknown key '$key'" ;;
     esac
@@ -48,12 +48,24 @@ aidc::load_profile_env() {
   *) aidc::die "$file: DOCKER_SOCKET must be 'on' or 'off'" ;;
   esac
 
+  AIDC_START_UPDATE_MISE="${val[START_UPDATE_MISE]:-off}"
+  AIDC_START_UPGRADE_TOOLS="${val[START_UPGRADE_TOOLS]:-off}"
+  case "$AIDC_START_UPDATE_MISE" in
+  on | off) ;;
+  *) aidc::die "$file: START_UPDATE_MISE must be 'on' or 'off'" ;;
+  esac
+  case "$AIDC_START_UPGRADE_TOOLS" in
+  on | off) ;;
+  *) aidc::die "$file: START_UPGRADE_TOOLS must be 'on' or 'off'" ;;
+  esac
+
   AIDC_GIT_AUTHOR_NAME="${val[GIT_AUTHOR_NAME]:-}"
   AIDC_GIT_AUTHOR_EMAIL="${val[GIT_AUTHOR_EMAIL]:-}"
   AIDC_GIT_COMMITTER_NAME="${val[GIT_COMMITTER_NAME]:-}"
   AIDC_GIT_COMMITTER_EMAIL="${val[GIT_COMMITTER_EMAIL]:-}"
   AIDC_GIT_SSH_COMMAND="${val[GIT_SSH_COMMAND]:-}"
   export AIDC_STATE_CLAUDE AIDC_STATE_CODEX AIDC_STATE_SHELL AIDC_DOCKER_SOCKET \
+    AIDC_START_UPDATE_MISE AIDC_START_UPGRADE_TOOLS \
     AIDC_GIT_AUTHOR_NAME AIDC_GIT_AUTHOR_EMAIL AIDC_GIT_COMMITTER_NAME \
     AIDC_GIT_COMMITTER_EMAIL AIDC_GIT_SSH_COMMAND
 }

@@ -40,6 +40,7 @@ docker volume create "aidc-tools-$name" >/dev/null
 docker volume create "aidc-claude-$AIDC_STATE_CLAUDE" >/dev/null
 docker volume create "aidc-codex-$AIDC_STATE_CODEX" >/dev/null
 docker volume create "aidc-shell-$AIDC_STATE_SHELL" >/dev/null
+docker volume create "$(aidc::downloads_volume)" >/dev/null
 
 devcontainer up --workspace-folder "$out"
 

@@ -68,9 +68,32 @@ setup() {
   [ "$(jq -r '.services.workspace.environment | has("GIT_AUTHOR_EMAIL")' "$f")" = false ]
 }
 
-@test "no environment key at all when every GIT_* field is unset" {
+@test "only the start fields are in the environment when every GIT_* field is unset" {
   aidc::generate demo "$AIDC_ROOT/.local/demo"
-  [ "$(jq -r '.services.workspace | has("environment")' "$AIDC_ROOT/.local/demo/compose.yaml")" = false ]
+  [ "$(jq -c '.services.workspace.environment' "$AIDC_ROOT/.local/demo/compose.yaml")" = '{"AIDC_START_UPDATE_MISE":"off","AIDC_START_UPGRADE_TOOLS":"off"}' ]
+}
+
+@test "the start fields reach the container as AIDC_START_*" {
+  printf 'START_UPDATE_MISE=on\nSTART_UPGRADE_TOOLS=on\n' >"$AIDC_ROOT/profiles/demo/profile.env"
+  aidc::generate demo "$AIDC_ROOT/.local/demo"
+  local f="$AIDC_ROOT/.local/demo/compose.yaml"
+  [ "$(jq -r .services.workspace.environment.AIDC_START_UPDATE_MISE "$f")" = on ]
+  [ "$(jq -r .services.workspace.environment.AIDC_START_UPGRADE_TOOLS "$f")" = on ]
+}
+
+@test "the shared mise downloads volume is external and mounted at /opt/aidc/downloads" {
+  aidc::generate demo "$AIDC_ROOT/.local/demo"
+  local f="$AIDC_ROOT/.local/demo/compose.yaml"
+  [ "$(jq -r '.volumes["aidc-mise-downloads"].external' "$f")" = true ]
+  [ "$(jq -r '[.services.workspace.volumes[] | select(.target == "/opt/aidc/downloads")][0] | "\(.type) \(.source)"' "$f")" = "volume aidc-mise-downloads" ]
+}
+
+@test "AIDC_MISE_DOWNLOADS_VOLUME names the downloads volume" {
+  AIDC_MISE_DOWNLOADS_VOLUME=aidc-mise-downloads-it1-x aidc::generate demo "$AIDC_ROOT/.local/demo"
+  local f="$AIDC_ROOT/.local/demo/compose.yaml"
+  [ "$(jq -r '.volumes | has("aidc-mise-downloads-it1-x")' "$f")" = true ]
+  [ "$(jq -r '.volumes | has("aidc-mise-downloads")' "$f")" = false ]
+  [ "$(jq -r '[.services.workspace.volumes[] | select(.target == "/opt/aidc/downloads")][0].source' "$f")" = aidc-mise-downloads-it1-x ]
 }
 
 @test "the socket bind and group_add appear only with DOCKER_SOCKET=on" {

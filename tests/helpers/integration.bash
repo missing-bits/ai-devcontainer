@@ -35,6 +35,15 @@ aidc_it_run() {
   printf '%s' "$id"
 }
 
+# aidc_it_downloads_volume: this run's mise downloads volume. Every
+# profile:code of the suite uses it instead of the real aidc-mise-downloads
+# (AIDC_MISE_DOWNLOADS_VOLUME below); zz_cleanup.bats removes it by name, so
+# a run of single files without zz_cleanup.bats leaves it behind:
+# `docker volume rm aidc-mise-downloads-<run id>-run`.
+aidc_it_downloads_volume() {
+  printf 'aidc-mise-downloads-%s-run' "$(aidc_it_run)"
+}
+
 # aidc_it_name <suffix>: a profile or state-profile name carrying this run's id.
 aidc_it_name() {
   printf '%s-%s' "$(aidc_it_run)" "$1"
@@ -129,7 +138,7 @@ aidc_it_new_profile() {
 
 # aidc_it_code <profile>: runs profile:code with devcontainer and code
 # stubbed (aidc_it_stub_bin must already be on PATH), so it only validates,
-# generates .local/<profile>/ and creates the four volumes.
+# generates .local/<profile>/ and creates the five volumes.
 aidc_it_code() {
   run bash "$AIDC_ROOT/tasks/host/profile/code" "$1"
   assert_success
@@ -251,3 +260,9 @@ aidc_it_cleanup() { # [<ledger>], default the file-scoped one
   done <"$ledger"
   rm -f "$ledger"
 }
+
+# Keep every profile:code of this suite off the real shared downloads volume.
+# A file that needs its own volume exports another name in setup_file; this
+# default then leaves it alone.
+: "${AIDC_MISE_DOWNLOADS_VOLUME:=$(aidc_it_downloads_volume)}"
+export AIDC_MISE_DOWNLOADS_VOLUME

@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# Container tools: `aidc-tools start|sync|update|status` (TD §3.3, §3.9).
-# start, sync and update run under the tools lock; status reads files only
-# and takes no lock. Every mise call runs from / with the isolation of
-# mise-isolation.sh.
+# Container tools: `aidc-tools start [copy]|sync|update|status|self-update`
+# (TD §3.3, §3.9). start, sync and update run under the tools lock; status
+# reads files only and takes no lock; self-update replaces the mise binary,
+# which lives outside the tools volume, and takes no lock either. Every
+# mise call runs from / with the isolation of mise-isolation.sh.
 #
 # AIDC_TOOLS_DIR and AIDC_DEVCONTAINER_DIR are test seams: production sets
 # neither and gets the defaults below, which match the fixed
@@ -22,7 +23,7 @@ claude_state="${CLAUDE_CONFIG_DIR:-/home/vscode/.claude}"
 codex_state="${CODEX_HOME:-/home/vscode/.codex}"
 
 usage() {
-	aidc::die "usage: aidc-tools start|sync|update|status"
+	aidc::die "usage: aidc-tools start [copy]|sync|update|status|self-update"
 }
 
 # copy_config: writes the source file to a temporary file in the tools
@@ -123,6 +124,20 @@ locked() {
 	exec 9>>"$tools_dir/.lock"
 	flock 9
 	case "$1" in
+	start-copy)
+		# Offline start with START_UPGRADE_TOOLS (container sudo/mise/trust
+		# spec, D3): copy, then install without `mise lock`, which needs the
+		# network. Without a lock, plain `mise install` installs what it can
+		# and the step still fails, as after a failed lock.
+		copy_config || aidc::die "cannot copy $source_file to $copy"
+		if [ -e "$lock" ]; then
+			install || rc=1
+		else
+			aidc::warn "no mise.lock; running plain mise install"
+			mise install || true
+			rc=1
+		fi
+		;;
 	start)
 		if [ ! -e "$copy" ]; then
 			copy_config || aidc::die "cannot copy $source_file to $copy"
@@ -143,8 +158,14 @@ locked() {
 	esac
 	if [ "$rc" -ne 0 ]; then
 		report_missing
-		aidc::die "aidc-tools $1 failed"
+		aidc::die "aidc-tools ${1/-/ } failed"
 	fi
+}
+
+# self_update: updates the mise binary only (container sudo/mise/trust spec,
+# D3); mise plugins stay as they are.
+self_update() {
+	mise self-update -y --no-plugins || aidc::die "aidc-tools self-update failed"
 }
 
 status() {
@@ -177,10 +198,16 @@ status() {
 	done
 }
 
-[ "$#" -eq 1 ] || usage
+task="${1-}"
+if [ "$#" -eq 2 ] && [ "$1" = start ] && [ "$2" = copy ]; then
+	task=start-copy
+elif [ "$#" -ne 1 ] || [ "$task" = start-copy ]; then
+	usage
+fi
 aidc::mise_isolate || aidc::die "cannot change to /"
-case "$1" in
-start | sync | update) locked "$1" ;;
+case "$task" in
+start | start-copy | sync | update) locked "$task" ;;
 status) status ;;
+self-update) self_update ;;
 *) usage ;;
 esac

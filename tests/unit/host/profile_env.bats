@@ -54,6 +54,27 @@ write_env() { printf '%s\n' "$@" >"$AIDC_ROOT/profiles/dev/profile.env"; }
   assert_failure
 }
 
+@test "the start fields default to off and accept on" {
+  write_env ""
+  aidc::load_profile_env dev
+  [ "$AIDC_START_UPDATE_MISE" = off ]
+  [ "$AIDC_START_UPGRADE_TOOLS" = off ]
+  write_env "START_UPDATE_MISE=on" "START_UPGRADE_TOOLS=on"
+  aidc::load_profile_env dev
+  [ "$AIDC_START_UPDATE_MISE" = on ]
+  [ "$AIDC_START_UPGRADE_TOOLS" = on ]
+}
+
+@test "a start field other than on or off is rejected" {
+  local field
+  for field in START_UPDATE_MISE START_UPGRADE_TOOLS; do
+    write_env "$field=yes"
+    run aidc::load_profile_env dev
+    assert_failure
+    assert_output_contains "$field must be 'on' or 'off'"
+  done
+}
+
 @test "quotes in a value are kept literally" {
   write_env 'GIT_AUTHOR_NAME="Example Developer"'
   aidc::load_profile_env dev

@@ -61,8 +61,8 @@ kept" ]
   [ "$(wc -l <"$STUB_DIR/mise-which-claude-calls")" -eq 1 ]
 }
 
-@test "each launcher resolves from / with only the two fixed MISE_* variables, whatever the caller's directory" {
-  export MISE_FOO=bar
+@test "each launcher resolves from / with only the five fixed MISE_* variables, whatever the caller's directory" {
+  export MISE_FOO=bar MISE_TRUSTED_CONFIG_PATHS=/workspaces
   for launcher in claude codex; do
     mkdir -p "$BATS_TEST_TMPDIR/work"
     cd "$BATS_TEST_TMPDIR/work"
@@ -71,11 +71,9 @@ kept" ]
     local env_file="$STUB_DIR/mise-which-$launcher-env"
     [ -f "$env_file" ]
     grep -qx 'pwd=/' "$env_file"
-    [ "$(grep -c '^MISE_' "$env_file")" -eq 2 ]
-    grep -qx 'MISE_DATA_DIR' "$env_file"
-    grep -qx 'MISE_GLOBAL_CONFIG_FILE' "$env_file"
+    [ "$(grep '^MISE_' "$env_file" | tr '\n' ' ')" = "MISE_ALWAYS_KEEP_DOWNLOAD MISE_CACHE_DIR MISE_DATA_DIR MISE_DOWNLOADS_DIR MISE_GLOBAL_CONFIG_FILE " ]
   done
-  unset MISE_FOO
+  unset MISE_FOO MISE_TRUSTED_CONFIG_PATHS
 }
 
 @test "no resolved CLI exits non-zero and names the documented aidc:sync invocation" {

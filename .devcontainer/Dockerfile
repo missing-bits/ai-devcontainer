@@ -10,7 +10,7 @@ ARG DEBIAN_FRONTEND=noninteractive
 # Base packages and the en_US.UTF-8 locale.
 RUN apt-get update \
   && apt-get install -y --no-install-recommends \
-    zsh git curl gnupg ca-certificates openssh-client jq util-linux procps locales \
+    zsh git curl gnupg ca-certificates openssh-client jq util-linux procps locales sudo \
   && sed -i 's/^# *\(en_US\.UTF-8 UTF-8\)/\1/' /etc/locale.gen \
   && locale-gen \
   && rm -rf /var/lib/apt/lists/*
@@ -41,7 +41,10 @@ RUN install -m 0755 -d /etc/apt/keyrings \
   && rm -rf /var/lib/apt/lists/*
 
 # mise, pinned by version and by the release asset's SHA-256 (values from the
-# release's SHASUMS256.txt).
+# release's SHASUMS256.txt). It lives in /opt/aidc/mise/bin, which the user
+# layer below hands to vscode, so `mise self-update` works without sudo; the
+# link keeps it on PATH and on sudo's secure_path (container sudo/mise/trust
+# spec, D2). A rebuild returns to this version.
 ARG TARGETARCH
 ARG MISE_VERSION=2026.9.15
 ARG MISE_SHA256_X64=2148d2485d1e6e48eb918729d86af4ecd438f9b5b63be360fb26005c85f0d853
@@ -56,7 +59,9 @@ RUN case "${TARGETARCH}" in \
     "https://github.com/jdx/mise/releases/download/v${MISE_VERSION}/mise-v${MISE_VERSION}-linux-${arch}.tar.gz" \
   && echo "${sum}  ${tmp}/mise.tar.gz" | sha256sum -c - \
   && tar -xzf "${tmp}/mise.tar.gz" -C "${tmp}" \
-  && install -m 0755 "${tmp}/mise/bin/mise" /usr/local/bin/mise \
+  && install -d -m 0755 /opt/aidc/mise/bin \
+  && install -m 0755 "${tmp}/mise/bin/mise" /opt/aidc/mise/bin/mise \
+  && ln -s /opt/aidc/mise/bin/mise /usr/local/bin/mise \
   && rm -rf "${tmp}"
 
 # oh-my-zsh, pinned by commit SHA and the release tarball's SHA-256 (the
@@ -105,6 +110,8 @@ ENV PATH=/usr/local/lib/aidc/launchers:/usr/local/sbin:/usr/local/bin:/usr/sbin:
 # ownership (TD §3.2). debian:trixie-slim has no user or group named
 # `vscode` and no account at UID/GID 1000, so the common host UID/GID does
 # not collide with a base-image account (verified against the pinned base).
+# This layer also hands the mise directory to vscode and grants vscode
+# passwordless sudo (container sudo/mise/trust spec, D1, D2).
 ARG USER_UID
 ARG USER_GID
 RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
@@ -125,9 +132,13 @@ RUN if [ -z "${USER_UID}" ] || [ -z "${USER_GID}" ]; then \
   && install -o vscode -g "${group}" -m 0644 /dev/null /home/vscode/.zshrc \
   && install -d -o root -g root -m 0755 /opt/aidc \
   && for dir in /home/vscode/.claude /home/vscode/.codex /home/vscode/.local /home/vscode/.local/state \
-    /home/vscode/.local/state/shell /opt/aidc/tools /workspaces; do \
+    /home/vscode/.local/state/shell /opt/aidc/tools /opt/aidc/downloads /workspaces; do \
     install -d -o vscode -g "${group}" -m 0755 "${dir}"; \
-  done
+  done \
+  && chown -R vscode:"${group}" /opt/aidc/mise \
+  && printf 'vscode ALL=(ALL) NOPASSWD:ALL\n' >/etc/sudoers.d/vscode \
+  && chmod 0440 /etc/sudoers.d/vscode \
+  && visudo -c
 
 USER vscode
 WORKDIR /home/vscode

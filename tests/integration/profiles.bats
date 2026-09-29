@@ -121,7 +121,7 @@ teardown_file() {
   [ "$output" = written-in-s2 ]
 }
 
-@test "profile:remove removes the container, .local/<p> and the tools volume, keeps projects, profiles and state volumes, and succeeds again" {
+@test "profile:remove removes the container, .local/<p> and the tools volume, keeps projects, profiles, state volumes and the mise downloads volume, and succeeds again" {
   aidc_it_exec "$A" sh -c 'echo survives >/home/vscode/.claude/pre-remove-marker'
 
   run bash "$AIDC_ROOT/tasks/host/profile/remove" "$A"
@@ -135,6 +135,8 @@ teardown_file() {
   [ -d "$AIDC_ROOT/projects/$A" ]
   [ -d "$AIDC_ROOT/profiles/$A" ]
   run docker volume inspect "aidc-claude-$A" "aidc-codex-$A" "aidc-shell-$A"
+  assert_success
+  run docker volume inspect "$AIDC_MISE_DOWNLOADS_VOLUME"
   assert_success
 
   run bash "$AIDC_ROOT/tasks/host/profile/remove" "$A"

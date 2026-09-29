@@ -15,6 +15,15 @@ services:
       DISABLE_UPDATES: "1"
       MISE_DATA_DIR: /opt/aidc/tools/mise
       MISE_GLOBAL_CONFIG_FILE: /opt/aidc/tools/mise.toml
+      # Downloads go to the volume every profile shares; the rest of mise's
+      # cache stays in the profile's tools volume. mise-isolation.sh sets the
+      # same values for the container's own mise runs.
+      MISE_DOWNLOADS_DIR: /opt/aidc/downloads
+      MISE_ALWAYS_KEEP_DOWNLOAD: "1"
+      MISE_CACHE_DIR: /opt/aidc/tools/cache
+      # The container mounts only its own profile project space here; the
+      # mise isolation removes this for container tasks and launchers.
+      MISE_TRUSTED_CONFIG_PATHS: /workspaces
       CLAUDE_CONFIG_DIR: /home/vscode/.claude
       CODEX_HOME: /home/vscode/.codex
       HISTFILE: /home/vscode/.local/state/shell/zsh_history

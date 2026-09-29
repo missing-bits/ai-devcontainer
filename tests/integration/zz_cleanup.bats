@@ -9,6 +9,12 @@
 load ../helpers/integration
 bats_require_minimum_version 1.5.0
 
+@test "remove this run's shared mise downloads volume" {
+  # Shared by every file of the run, so no single file owns its cleanup.
+  run docker volume rm -f "$(aidc_it_downloads_volume)"
+  assert_success
+}
+
 @test "no container or volume of this run is left behind" {
   run aidc_it_run
   assert_success
