@@ -39,6 +39,12 @@ The named volume `aidc-tools-<p>` that holds one environment profile's
 container tool installations, the tools config copy, and its lockfile.
 _Avoid_: snapshot, active tool snapshot
 
+**Mise downloads volume**:
+The named volume `aidc-mise-downloads`, shared by every environment profile,
+that keeps the tool archives mise downloads, so another profile or a rebuilt
+one installs them without downloading again.
+_Avoid_: shared cache, tools cache
+
 **Tools config copy**:
 The copy of `.devcontainer/mise.toml` in the profile tools volume, with the
 `mise.lock` mise writes beside it; launchers and container tasks read it.

@@ -34,10 +34,47 @@ Container tools, the agent CLIs included, are declared in
 run `aidc:sync` in each profile that needs it.
 
 Project runtimes belong in the project's own `mise.toml`, inside its
-checkout. Run `mise trust` and `mise install` in that checkout as usual. A
-project's `mise.toml` never changes which agent CLI runs: the `claude` and
+checkout; run `mise install` there. mise trusts every project under
+`/workspaces` without asking, so a project's configuration, its hooks and
+tasks included, takes effect as soon as mise reads it: clone only what you
+would trust ([Security](security.md)). A project's `mise.toml` never
+changes which agent CLI runs: the `claude` and
 `codex` launchers come first on `PATH` and resolve the CLI from the
 container tools.
+
+## Updating mise
+
+The image pins mise, and `vscode` owns the binary, so you can update it
+without `sudo`:
+
+```sh
+mise self-update            # newest release
+mise self-update 2026.9.20  # a given version
+```
+
+An updated mise lasts until the container is recreated; "Rebuild Container"
+returns to the pinned version. To update at every start, set
+`START_UPDATE_MISE=on` in `profile.env`; `START_UPGRADE_TOOLS=on` does the
+same for the container tools, as `aidc:update`. `vscode` also has
+passwordless `sudo`, for OS packages a project needs.
+
+## Downloads
+
+Every profile shares the mise downloads volume, mounted at
+`/opt/aidc/downloads`: a tool archive one profile downloaded installs in
+another, or after `profile:remove`, without downloading again. Installed
+tools and mise's other cache stay in each profile's tools volume. Two
+profiles installing the same archive at the same moment can race; the
+loser fails with "No such file or directory", and running the install
+again (the next start, or `aidc:sync`) succeeds. To reclaim space, empty it
+from any container:
+
+```sh
+rm -rf /opt/aidc/downloads/*
+```
+
+mise prunes its other cache in each tools volume on its own; `mise cache
+clear` empties it.
 
 ## Default plugins
 
@@ -56,7 +93,8 @@ A failed tool installation or plugin initialization does not stop the
 container: VS Code still attaches. To recover:
 
 1. Run `aidc:status` and read the start's log; the full log is
-   `/opt/aidc/tools/init.log`.
+   `/opt/aidc/tools/init.log`. A failed step is named `mise` (the start's
+   mise update), `tools` or `plugins-<agent>`.
 2. Fix the cause, typically network access or GitHub's rate limit.
 3. Run `aidc:sync` to install the tools again. Plugin initialization runs
    at container start, so use VS Code's "Rebuild Container" to retry it.

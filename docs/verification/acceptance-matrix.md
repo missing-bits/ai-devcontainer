@@ -26,7 +26,7 @@ during implementation, with its result and the date it ran. `kind` is
 | 8 | integration, unit | `tests/integration/plugins.bats`; `tests/unit/container/plugins.bats` | "a new state profile gets every default plugin and the marker"; "a default removed after the marker exists is not reinstalled" |
 | 9 | integration | `tests/integration/plugins.bats` | "an interrupted first plugin install completes at the next start, with the marker" |
 | 10 | integration | `tests/integration/plugins.bats` | "first start with no network runs, and aidc:status from an untrusted project shows the tools, plugins and failed initialization; a later start with the network installs and reports ok" |
-| 11 | integration, unit | `tests/integration/profiles.bats`; `tests/unit/host/profile_tasks.bats` | "profile:remove removes the container, .local/<p> and the tools volume, keeps projects, profiles and state volumes, and succeeds again"; "profile:remove tears down a profile via compose, keeps state, and is idempotent via the label" |
+| 11 | integration, unit | `tests/integration/profiles.bats`; `tests/unit/host/profile_tasks.bats` | "profile:remove removes the container, .local/<p> and the tools volume, keeps projects, profiles, state volumes and the mise downloads volume, and succeeds again"; "profile:remove tears down a profile via compose, keeps state, and is idempotent via the label" |
 | 12 | unit, integration | `tests/unit/host/repository.bats`; `tests/integration/privacy.bats` | "git check-ignore covers profiles, projects and .local"; "the image context holds none of the private directories"; "the build context holds none of the private directories"; "no private key file exists in the image"; "no private key file exists in a running container"; "GIT_AUTHOR_NAME and GIT_COMMITTER_EMAIL from profile.env appear in a test commit"; "the Docker socket exists only with DOCKER_SOCKET=on" |
 
 AC10's VS Code half ("VS Code attaches") and AC7's login-survival half (a
@@ -43,6 +43,24 @@ compose -f <test fixture>` instead, deliberately (`profile:code` is stubbed
 in those tests — see the Task 7 report). The real `devcontainer up`
 invocation is exercised only by the Task 6 implementation smoke run and by
 probe P6.1 below.
+
+## Container sudo, mise updates, downloads and project trust
+
+One row per acceptance criterion of
+`docs/specs/2026-09-29-container-sudo-mise-trust-design.md`. Integration
+tests are in `tests/integration/sudo_mise_trust.bats`; results are from the
+integration runs of 2026-09-29.
+
+| S | kind | test file | test name | result |
+|---|---|---|---|---|
+| S1 | integration | `sudo_mise_trust.bats` | "S1: vscode runs sudo without a password" | pass |
+| S2 | integration | `sudo_mise_trust.bats` | "S2: visudo accepts the image's sudoers configuration" | pass |
+| S3 | integration, unit | `sudo_mise_trust.bats`; `tests/unit/container/tools.bats` | "S3: vscode updates mise without sudo, and a recreated container returns to the pinned version"; "self-update updates the mise binary only, without the tools lock" | pass |
+| S4 | checklist | `manual-checklist.md` item 12 | — | not run (needs VS Code) |
+| S5 | integration, unit | `sudo_mise_trust.bats`; `tests/unit/container/entrypoint.bats`; `tests/unit/container/tools.bats` | the four "S5: …" tests; the entrypoint's start-field tests; the `start copy` tests | pass |
+| S6 | integration | `sudo_mise_trust.bats` | "S6: a project in the profile project space loads without a trust prompt"; "S6: a fresh project outside /workspaces still needs trust in the shell" | pass |
+| S7 | integration | `sudo_mise_trust.bats` | "S7: an archive S downloaded installs in B, with an empty tools volume, on no network" | pass |
+| S8 | integration (probe) | `sudo_mise_trust.bats` | "S8 probe: two containers install the same version into the shared downloads at once; a retry settles a lost race"; "S8 probe: an install killed mid-download does not break the next one" | race found; a retry settles it (see P8.1) |
 
 ## Probes
 
@@ -72,3 +90,6 @@ detail is in the SDD reports of that plan (`task-2-report.md` through
 | P7.2 (whether "Rebuild Container" makes `profile:rebuild` unnecessary) | **Not run**: needs VS Code driving a running profile. Stays on the manual checklist, item 10. | 2026-09-28 |
 | P7.3 (concurrent use of one state profile from two containers) | **Not run** as a real two-CLI-session probe: needs interactive `claude`/`codex` logins. Its filesystem precondition — two containers mounting the identical state volumes, with a file written by one immediately visible from the other — is verified in Docker (AC7 above). The concurrent-session part stays on the manual checklist, item 11. | 2026-09-28 |
 | P7.4 (cross-container `flock` on a shared volume, TD §5) | **Pass on Docker Desktop/WSL2**: `tests/integration/tools.bats`'s second-container test waits for the `flock` the first container holds on a shared volume and acquires it once `docker stop` ends the holder. Other topologies untested. | 2026-09-29 |
+| P8.1 (concurrent installs into the shared mise downloads volume, spec S8) | **Race found**: two installs of one archive at once can fail the loser with "No such file or directory" (both integration runs of 2026-09-29, one of three standalone runs); a plain retry succeeds every time. An install killed mid-download does not break the next one. Ruling (developer, 2026-09-29): accepted under report-and-retry; the test asserts that a retry settles a lost race. | 2026-09-29 |
+| P8.2 (mise trust in the container, spec D4) | mise 2026.9.15 in normal mode trusts the active config on its own for `mise exec`, `mise run` and `mise install`; shell activation still warns "not trusted" and skips the config outside `MISE_TRUSTED_CONFIG_PATHS`, and loads it under `/workspaces`. | 2026-09-29 |
+| P8.3 (`mise self-update` as `vscode` through the `/usr/local/bin` link, spec D2) | **Pass**: 2026.9.15 to 2026.9.16 without `sudo`; a recreated container reports the pinned version again. | 2026-09-29 |

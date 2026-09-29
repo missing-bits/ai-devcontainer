@@ -23,8 +23,9 @@ Run these from the repository root with `mise run <task>`:
   mounted. It makes `<name>` the active profile; without a name it uses the
   active profile.
 - `profile:remove <name>` removes the container, `.local/<name>/` and the
-  profile's tools volume. It keeps `projects/<name>/`, `profiles/<name>/`
-  and every state volume, so logins and checkouts survive.
+  profile's tools volume. It keeps `projects/<name>/`, `profiles/<name>/`,
+  every state volume and the shared mise downloads volume, so logins and
+  checkouts survive.
 
 ## `profile.env`
 
@@ -33,6 +34,8 @@ Run these from the repository root with `mise run <task>`:
 | `PROFILE_CLAUDE`, `PROFILE_CODEX` | agent state profile: logins, settings, plugins, sessions |
 | `PROFILE_SHELL` | shell history profile |
 | `DOCKER_SOCKET` | `on` or `off`; see [Security](security.md) first |
+| `START_UPDATE_MISE` | `on` or `off`: update mise at every online start |
+| `START_UPGRADE_TOOLS` | `on` or `off`: run `aidc:update` at every online start |
 | `GIT_AUTHOR_*`, `GIT_COMMITTER_*` | Git identity inside the container |
 | `GIT_SSH_COMMAND` | SSH command Git uses; see below |
 
@@ -41,6 +44,12 @@ name the same state profile share it. For example, to use one Claude login
 in two profiles while keeping Codex and shell history separate, set
 `PROFILE_CLAUDE=main` in both. A change an agent makes to shared state
 reaches every profile that shares it.
+
+The start fields default to `off`. At a start without network access they
+skip their updates without marking the start failed; `START_UPGRADE_TOOLS`
+still copies `.devcontainer/mise.toml`, so a newly declared tool fails the
+start until an online start or `aidc:sync` installs it. See
+[Inside the container](container.md#updating-mise).
 
 Values are taken literally: quotes stay as characters, and only whole-line
 `#` comments are allowed.

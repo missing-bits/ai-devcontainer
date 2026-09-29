@@ -10,7 +10,9 @@ once, so no automated test covers them; `mise` does not run this checklist.
 Items 1–9 are the technical design's §7 manual smoke checklist
 (`docs/technical-designs/ai-devcontainer-v2-technical-design.md`); the two
 items after them are the spec's open verification items that have no test
-of their own. Run all of it against a profile started with `profile:code`.
+of their own; item 12 is S4 of
+`docs/specs/2026-09-29-container-sudo-mise-trust-design.md`. Run all of it
+against a profile started with `profile:code`.
 
 ## 1. Project mise activation works in the VS Code terminal
 
@@ -141,3 +143,15 @@ profile at once; item 7 above is this checklist's coverage of it.
 Corresponds to probe P7.3, which was not run as a real two-CLI-session
 probe (needs interactive `claude`/`codex` logins) — only its filesystem
 precondition was verified in Docker (see the acceptance matrix, AC7).
+
+## 12. "Rebuild Container" returns an updated mise to the pinned version (S4)
+
+**Command:** in a profile with `START_UPDATE_MISE=off`, run
+`mise self-update -y 2026.9.16` in the VS Code terminal and check
+`mise --version`; then use VS Code's "Rebuild Container" and check
+`mise --version` again.
+
+**Expected:** the update needs no `sudo` and changes the version; after the
+rebuild, `mise --version` reports the version `.devcontainer/Dockerfile`
+pins. `tests/integration/sudo_mise_trust.bats` covers the same with a
+Compose recreate (S3); this item confirms VS Code's rebuild behaves alike.

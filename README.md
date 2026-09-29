@@ -45,9 +45,11 @@ MISE_TASK_RUN_AUTO_INSTALL=false mise -C / run aidc:status
 - [Profiles](docs/guides/profiles.md): creating, changing and removing
   profiles; sharing state; Git identity and SSH accounts.
 - [Inside the container](docs/guides/container.md): container tasks,
-  container tools and project runtimes, plugins, recovery, CLI versions.
-- [Security](docs/guides/security.md): the isolation boundary and the
-  Docker socket. Read it before you enable `DOCKER_SOCKET`.
+  container tools and project runtimes, updating mise, downloads, plugins,
+  recovery, CLI versions.
+- [Security](docs/guides/security.md): the isolation boundary, root and
+  project trust, and the Docker socket. Read it before you enable
+  `DOCKER_SOCKET`.
 
 The terms used here are defined in
 [docs/domain/glossary.md](docs/domain/glossary.md); the design is in

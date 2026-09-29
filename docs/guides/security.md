@@ -20,6 +20,29 @@ state volumes, and use the forwarded SSH agent and the network. A state
 volume shared between profiles carries an agent's changes to every profile
 that shares it.
 
+## Root, trust and shared downloads
+
+`vscode` has passwordless `sudo`, so an agent command can act as root inside
+the container. It can change files the image owns, including the mise
+binary and the policy files in `/etc/claude-code/` and `/etc/codex/`, until
+the container is recreated. It can also change the ownership and permissions
+of the checkouts and of every mounted volume; those changes persist, and a
+rebuild does not undo them.
+
+mise trusts every project under `/workspaces`: a project's `mise.toml` runs
+its environment, hooks and tasks without a prompt, including in a
+repository an agent clones there.
+
+The mise downloads volume reaches every profile, whatever state profiles
+they use: an agent command in one profile can change an archive another
+profile installs next, subject to the checksums mise verifies. Two
+profiles installing the same archive at once can race; a retry settles it
+([Inside the container](container.md#downloads)).
+
+With `START_UPDATE_MISE` or `START_UPGRADE_TOOLS` on, an online start runs
+mise and tool versions no test has seen; a newer Codex may outrun the
+`codex` launcher's tables ([Inside the container](container.md#cli-versions)).
+
 ## The Docker socket
 
 `DOCKER_SOCKET=on` in `profile.env` bind-mounts the host's Docker socket
